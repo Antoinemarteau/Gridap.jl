@@ -42,7 +42,7 @@ function get_data(f::CellState)
   @unreachable """\n
   get_data cannot be called on a CellState
 
-  If you see this error messase it is likelly that you are trying to perform
+  If you see this error message it is likely that you are trying to perform
   an operation that does not make sense for a CellState. In most cases,
   to do the wanted operation, you would need first to project the CellState
   to a FESpace (e.g. via a L2 projection).
@@ -53,8 +53,10 @@ get_triangulation(f::CellState) = get_triangulation(f.points)
 DomainStyle(::Type{CellState{T,P}}) where {T,P} = DomainStyle(P)
 Base.copy(f::CellState) = CellState(f.points, copy(f.values))
 
+_get_cell_points(a::CellState) = a.points
+
 function evaluate!(cache,f::CellState,x::CellPoint)
-  if f.points === x
+  if f.points == x
     f.values
   else
     @unreachable """\n
@@ -104,7 +106,7 @@ function update_state!(updater::Function,f::CellField...)
     """
     msg = """\n
     The number of new states given by the updater Function does not match
-    the number of CellState objects given as arguments in the update_state! Funciton.
+    the number of CellState objects given as arguments in the update_state! function.
     """
     @check length(states) <= length(a) msg
   end

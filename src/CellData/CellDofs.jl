@@ -20,49 +20,51 @@ function change_domain(a::CellDof,::PhysicalDomain,::ReferenceDomain)
 end
 
 function change_domain(a::CellDof,ttrian::Triangulation,target_domain::DomainStyle)
-  change_domain(a,DomainStyle(a),ttrian,target_domain)
+  change_domain(a,get_triangulation(a),DomainStyle(a),ttrian,target_domain)
 end
 
-function change_domain(a::CellDof,::ReferenceDomain,ttrian::Triangulation,::ReferenceDomain)
+function change_domain(a::CellDof,source_domain::DomainStyle,target_trian::Triangulation,target_domain::DomainStyle)
+  change_domain(a,get_triangulation(a),source_domain,target_trian,target_domain)
+end
+
+function change_domain(a::CellDof,strian::Triangulation,::ReferenceDomain,ttrian::Triangulation,::ReferenceDomain)
   msg = """\n
   We cannot move the given CellDof to the reference domain of the requested triangulation.
   Make sure that the given triangulation is either the same as the triangulation on which the
   CellDof is defined, or that the latter triangulation is the background of the former.
   """
-  strian = get_triangulation(a)
   if strian === ttrian
     return a
   end
-  @assert is_change_possible(strian,ttrian) msg
+  @check is_change_possible(strian,ttrian) msg
   D = num_cell_dims(strian)
   sglue = get_glue(strian,Val(D))
   tglue = get_glue(ttrian,Val(D))
   change_domain_ref_ref(a,ttrian,sglue,tglue)
 end
 
-function change_domain(a::CellDof,::PhysicalDomain,ttrian::Triangulation,::PhysicalDomain)
+function change_domain(a::CellDof,strian::Triangulation,::PhysicalDomain,ttrian::Triangulation,::PhysicalDomain)
   msg = """\n
   We cannot move the given CellDof to the physical domain of the requested triangulation.
   Make sure that the given triangulation is either the same as the triangulation on which the
   CellDof is defined, or that the latter triangulation is the background of the former.
   """
-  strian = get_triangulation(a)
   if strian === ttrian
     return a
   end
-  @assert is_change_possible(strian,ttrian) msg
+  @check is_change_possible(strian,ttrian) msg
   D = num_cell_dims(strian)
   sglue = get_glue(strian,Val(D))
   tglue = get_glue(ttrian,Val(D))
   change_domain_phys_phys(a,ttrian,sglue,tglue)
 end
 
-function change_domain(a::CellDof,::PhysicalDomain,trian::Triangulation,::ReferenceDomain)
+function change_domain(a::CellDof,strian::Triangulation,::PhysicalDomain,trian::Triangulation,::ReferenceDomain)
   a_trian = change_domain(a,trian,PhysicalDomain())
   change_domain(a_trian,ReferenceDomain())
 end
 
-function change_domain(a::CellDof,::ReferenceDomain,trian::Triangulation,::PhysicalDomain)
+function change_domain(a::CellDof,strian::Triangulation,::ReferenceDomain,trian::Triangulation,::PhysicalDomain)
   a_phys = change_domain(a,PhysicalDomain())
   change_domain(a_phys,trian,PhysicalDomain())
 end
