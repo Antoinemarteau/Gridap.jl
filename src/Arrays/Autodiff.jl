@@ -1,4 +1,6 @@
 
+"""
+"""
 function autodiff_array_gradient(a,i_to_x)
   dummy_forwarddiff_tag = ()->()
   i_to_cfg = lazy_map(ConfigMap(ForwardDiff.gradient,dummy_forwarddiff_tag),i_to_x)
@@ -8,6 +10,8 @@ function autodiff_array_gradient(a,i_to_x)
   i_to_result
 end
 
+"""
+"""
 function autodiff_array_jacobian(a,i_to_x)
   dummy_forwarddiff_tag = ()->()
   i_to_cfg = lazy_map(ConfigMap(ForwardDiff.jacobian,dummy_forwarddiff_tag),i_to_x)
@@ -17,6 +21,8 @@ function autodiff_array_jacobian(a,i_to_x)
   i_to_result
 end
 
+"""
+"""
 function autodiff_array_hessian(a,i_to_x)
   agrad = i_to_y -> autodiff_array_gradient(a,i_to_y)
   autodiff_array_jacobian(agrad,i_to_x)
@@ -47,6 +53,12 @@ function autodiff_array_hessian(a,i_to_x,i_to_j)
   autodiff_array_jacobian(agrad,i_to_x,i_to_j)
 end
 
+"""
+  struct ConfigMap{F,T} <: Map
+
+Map for ForwardDiff.[`F`]Config(`T`,...) where `T` is tag function and `F` is
+either gradient or jacobian.
+"""
 struct ConfigMap{
   F <: Union{typeof(ForwardDiff.gradient),typeof(ForwardDiff.jacobian)},
   T <: Union{<:Function,Nothing}} <: Map
@@ -72,6 +84,9 @@ function evaluate!(cfg,k::ConfigMap,x)
   cfg
 end
 
+"""
+  struct DualizeMap{F,T} <: Map
+"""
 struct DualizeMap{
   F <: Union{typeof(ForwardDiff.gradient),typeof(ForwardDiff.jacobian)},
   T <: Union{<:Function,Nothing}} <: Map
@@ -92,6 +107,11 @@ function evaluate!(cfg,k::DualizeMap,x)
   xdual
 end
 
+"""
+    struct AutoDiffMap{F} <: Map
+
+Map for automatic differentiation, `F` is a ForwardDiff differentiation function.
+"""
 struct AutoDiffMap{F} <: Map
   f::F
 end
