@@ -70,6 +70,7 @@ export Integrand
 export ∫
 export CellDof
 export get_normal_vector
+export get_tangent_vector
 export get_cell_measure
 export Interpolable
 export KDTreeSearch
