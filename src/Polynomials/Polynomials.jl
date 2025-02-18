@@ -114,6 +114,7 @@ export LegendreBasis
 export ChebyshevBasis
 export BernsteinBasis
 export BernsteinBasisOnSimplex
+export FEECPolyBasis
 
 export CompWiseTensorPolyBasis
 export QGradBasis
@@ -143,6 +144,8 @@ include("CompWiseTensorPolyBases.jl")
 include("NedelecPolyBases.jl")
 
 include("RaviartThomasPolyBases.jl")
+
+include("ExteriorCalculusBases.jl")
 
 include("MonomialBases.jl")
 
