@@ -17,7 +17,6 @@ struct FEECPolyBasis{r,k,F,D,V,K,PT,B} <: PolynomialBasis{D,V,K,PT}
 
   function FEECPolyBasis{D}(::Type{T},r,k,F::Symbol,::Type{PT}) where {D,PT<:Polynomial,T}
     @check T<:Real "T needs to be <:Real since represents the scalar type"
-    @check F in (:P⁻,:P,:Q⁻,:S) "F must be either :P⁻,:P,:Q⁻ or :S"
     @check k in 0:D "The form order k must be in 0:D"
     @check r > 0    "The polynomial order r must be positive"
 
@@ -38,28 +37,30 @@ end
 # Implementation
 
 function _select_FEEC_basis(r,k,F,::Val{D},::Type{T},::Type{PT}) where {D,T,PT}
+  @check F in (:P⁻,:P,:Q⁻,:S) "F must be either :P⁻,:P,:Q⁻ or :S"
+
   if k == 0
     # Scalar function
     @notimplementedif r < 1
     if     F == :P⁻ || F == :P # Lagrange, ℙr space
-      return CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
+      CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
     elseif F == :Q⁻            # Lagrange, ℚr space
-      return CartProdPolyBasis(PT,Val(D),T,r,_q_filter)
+      CartProdPolyBasis(PT,Val(D),T,r,_q_filter)
     elseif F == :S             # Lagrange, 𝕊r space
-      return CartProdPolyBasis(PT,Val(D),T,r,_ser_filter)
+      CartProdPolyBasis(PT,Val(D),T,r,_ser_filter)
     end
 
 
   elseif k == D
     # Scalar densities
     if     F == :P⁻ # Lagrange, ℙr₋1 space
-      return CartProdPolyBasis(PT,Val(D),T,r-1,_p_filter)
+      CartProdPolyBasis(PT,Val(D),T,r-1,_p_filter)
     elseif F == :P  # Lagrange, ℙr space
-      return CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
+      CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
     elseif F == :Q⁻ # Lagrange, ℚr₋1 space
-      return CartProdPolyBasis(PT,Val(D),T,r-1,_q_filter)
+      CartProdPolyBasis(PT,Val(D),T,r-1,_q_filter)
     elseif F == :S  # Serandipity Lagrange ≡ ℙr space
-      return CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
+      CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
     end
 
 
@@ -70,11 +71,11 @@ function _select_FEEC_basis(r,k,F,::Val{D},::Type{T},::Type{PT}) where {D,T,PT}
     if D == 2
       if     F == :P⁻ # Raviart-Thomas
         @notimplementedif PT ≠ Monomial
-        return PCurlGradBasis(PT,Val(D),T,r-1)
+        PCurlGradBasis(PT,Val(D),T,r-1)
       elseif F == :P  # BDM on simplex
-        return CartProdPolyBasis(PT,Val(D),V,r,Polynomials._p_filter)
+        CartProdPolyBasis(PT,Val(D),V,r,Polynomials._p_filter)
       elseif F == :Q⁻ # Raviart-Thomas
-        return QCurlGradBasis(PT,Val(D),T,r-1)
+        QCurlGradBasis(PT,Val(D),T,r-1)
       elseif F == :S  # BDM on D-cubes
         @notimplemented
       end
@@ -82,11 +83,11 @@ function _select_FEEC_basis(r,k,F,::Val{D},::Type{T},::Type{PT}) where {D,T,PT}
     else # so D == 3
       if     F == :P⁻ # First kind Nedelec
         @notimplementedif PT ≠ Monomial
-        return PGradBasis(PT,Val(D),T,r-1)
+        PGradBasis(PT,Val(D),T,r-1)
       elseif F == :P  # Second kind Nedelec
         @notimplemented
       elseif F == :Q⁻ # First kind Nedelec
-        return QGradBasis(PT,Val(D),T,r-1)
+        QGradBasis(PT,Val(D),T,r-1)
       elseif F == :S  # "Serendipity second kind Nedelec" ?
         @notimplemented
       end
@@ -97,16 +98,18 @@ function _select_FEEC_basis(r,k,F,::Val{D},::Type{T},::Type{PT}) where {D,T,PT}
     @notimplementedif D > 3
     # D == 3
     if     F == :P⁻ # Raviart-Thomas
-      return PCurlGradBasis(PT,Val(D),T,r-1)
+      PCurlGradBasis(PT,Val(D),T,r-1)
     elseif F == :P  # "3D BDM" ?
       @notimplemented
     elseif F == :Q⁻ # Raviart-Thomas
-      return QCurlGradBasis(PT,Val(D),T,r-1)
+      QCurlGradBasis(PT,Val(D),T,r-1)
     elseif F == :S  # "3D Serandipity BDM" ?
       @notimplemented
     end
+
+  else
+    @unreachable
   end
-  @unreachable
 end
 
 # API
