@@ -19,7 +19,8 @@ T = Float64   # scalar type
 r = 3         # Polynomial order
 
 no_hessian = true
-@inline function _test_bases(b::FEECPolyBasis{r,k,F,D}, b2, no_hessian=false) where {r,k,F,D}
+@inline function _test_bases(b::FEECPolyBasis{r,k,F}, b2, no_hessian=false) where {r,k,F}
+  D = get_dimension(b)
   @test length(b) == FEEC_length(r,k,D,Val(F))
   @test b._basis isa typeof(b2)
   @test evaluate(b,x) == evaluate(b2,x)
