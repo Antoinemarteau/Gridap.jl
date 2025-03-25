@@ -1,5 +1,5 @@
 """
-    CompWiseTensorPolyBasis{D,V,K,PT,L} <: PolynomialBasis{D,V,K,PT}
+    CompWiseTensorPolyBasis{D,V,PT,L} <: PolynomialBasis{D,V,PT}
 
 "Polynomial basis of component wise tensor product polynomial spaces"
 
@@ -20,7 +20,8 @@ with `L`>1, where the scalar `D`-multivariate spaces 𝕊ˡ (for 1 ≤ l ≤ `L`
 The `L`×`D` matrix of orders α is given in the constructor, and `K` is the
 maximum of α. Any 1D polynomial family `PT<:Polynomial` is usable.
 """
-struct CompWiseTensorPolyBasis{D,V,K,PT,L} <: PolynomialBasis{D,V,K,PT}
+struct CompWiseTensorPolyBasis{D,V,PT,L} <: PolynomialBasis{D,V,PT}
+  max_order::Int
   orders::SMatrix{L,D,Int}
 
   function CompWiseTensorPolyBasis{D}(
@@ -34,11 +35,12 @@ struct CompWiseTensorPolyBasis{D,V,K,PT,L} <: PolynomialBasis{D,V,K,PT}
     @check isconcretetype(PT) "PT needs to be a concrete <:Polynomial type"
     K = maximum(orders)
 
-    new{D,V,K,PT,L}(orders)
+    new{D,V,PT,L}(K,orders)
   end
 end
 
 Base.size(a::CompWiseTensorPolyBasis) = ( sum(prod.(eachrow(a.orders .+ 1))), )
+get_order(b::CompWiseTensorPolyBasis) = b.max_order
 
 """
     get_comp_terms(f::CompWiseTensorPolyBasis{D,V})
@@ -50,7 +52,7 @@ that is all elements of ⟦1,`o`(l,1)+1⟧ × ⟦1,`o`(l,2)+1⟧ × … × ⟦1,
 E.g., if `orders=[ 0 1; 1 0]`, then the `comp_terms` are
 `( CartesianIndices{2}((1,2)), CartesianIndices{2}((2,1)) )`.
 """
-function get_comp_terms(f::CompWiseTensorPolyBasis{D,V,K,PT,L}) where {D,V,K,PT,L}
+function get_comp_terms(f::CompWiseTensorPolyBasis{D,V,PT,L}) where {D,V,PT,L}
   _terms(l) = CartesianIndices( Tuple(f.orders[l,:] .+ 1) )
   comp_terms = ntuple(l -> _terms(l), Val(L))
   comp_terms::NTuple{L,CartesianIndices{D}}
@@ -62,11 +64,12 @@ end
 #################################
 
 function _evaluate_nd!(
-  b::CompWiseTensorPolyBasis{D,V,K,PT,L}, x,
+  b::CompWiseTensorPolyBasis{D,V,PT,L}, x,
   r::AbstractMatrix{V}, i,
-  c::AbstractMatrix{T}) where {D,V,K,PT,L,T}
+  c::AbstractMatrix{T}) where {D,V,PT,L,T}
 
-  orders = b.orders
+  K = get_order(b)
+  #orders = b.orders
   comp_terms = get_comp_terms(b)
 
   Kd = Val(K)
@@ -112,13 +115,14 @@ function _comp_wize_set_value!(r::AbstractMatrix{V},i,s::T,k,l) where {V,T}
 end
 
 function _gradient_nd!(
-  b::CompWiseTensorPolyBasis{D,V,K,PT,L}, x,
+  b::CompWiseTensorPolyBasis{D,V,PT,L}, x,
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
-  s::MVector{D,T}) where {D,V,K,PT,L,G,T}
+  s::MVector{D,T}) where {D,V,PT,L,G,T}
 
-  orders = b.orders
+  K = get_order(b)
+  #orders = b.orders
   comp_terms = get_comp_terms(b)
 
   Kd = Val(K)
@@ -151,7 +155,7 @@ function _gradient_nd!(
 end
 
 """
-    _comp_wize_set_derivative!(r::AbstractMatrix{G},i,s,k,::Type{V})
+    _comp_wize_set_derivative!(r::AbstractMatrix{G},i,s,k,::Val{l},::Type{V})
 
 ```
 z = zero(s)
@@ -189,14 +193,15 @@ end
 end
 
 function _hessian_nd!(
-  b::CompWiseTensorPolyBasis{D,V,K,PT,L}, x,
+  b::CompWiseTensorPolyBasis{D,V,PT,L}, x,
   r::AbstractMatrix{H}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
   h::AbstractMatrix{T},
-  s::MMatrix{D,D,T}) where {D,V,K,PT,L,H,T}
+  s::MMatrix{D,D,T}) where {D,V,PT,L,H,T}
 
-  orders = b.orders
+  K = get_order(b)
+  #orders = b.orders
   comp_terms = get_comp_terms(b)
 
   Kd = Val(K)
