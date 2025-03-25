@@ -44,28 +44,29 @@ isHierarchical(::Type{<:Polynomial}) = @abstractmethod
 # ndof_1d: maximum of 1D polynomial vector in any spatial dimension
 
 """
-    PolynomialBasis{D,V,K,PT<:Polynomial} <: AbstractVector{PT}
+    PolynomialBasis{D,V,PT<:Polynomial} <: AbstractVector{PT}
 
 Abstract type representing a generic multivariate polynomial basis.
 The parameters are:
 - `D`: the spatial dimension
 - `V`: the image values type, a concrete type `<:Real` or `<:MultiValue`
-- `K`: the maximum order of a basis polynomial in a spatial component
 - `PT <: Polynomial`: the family of the basis polynomials (must be a concrete type).
+
+The implementations also stores `K`: the maximum order of a basis polynomial in a spatial component
 """
-abstract type PolynomialBasis{D,V,K,PT<:Polynomial} <: AbstractVector{PT}  end
+abstract type PolynomialBasis{D,V,PT<:Polynomial} <: AbstractVector{PT}  end
 
 @inline Base.size(::PolynomialBasis{D,V}) where {D,V} = @abstractmethod
-@inline Base.getindex(::PolynomialBasis{D,V,K,PT}, i::Integer) where {D,V,K,PT} = PT()
+@inline Base.getindex(::PolynomialBasis{D,V,PT}, i::Integer) where {D,V,PT} = PT()
 @inline Base.IndexStyle(::PolynomialBasis) = IndexLinear()
 @inline return_type(::PolynomialBasis{D,V}) where {D,V} = V
 
 """
-    get_order(b::PolynomialBasis{D,V,K}) = K
+    get_order(b::PolynomialBasis)
 
 Return the maximum polynomial order in a dimension, or `0` in 0D.
 """
-@inline get_order(::PolynomialBasis{D,V,K}) where {D,V,K} = K
+@inline get_order(::PolynomialBasis) = @abstractmethod
 
 
 ###########
