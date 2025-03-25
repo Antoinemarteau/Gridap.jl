@@ -311,6 +311,7 @@ the `x_to_λ` change of coordinate matrix, see [`_compute_cart_to_bary_matrix`](
 end
 
 """
+    bernstein_terms(K,D)
     bernstein_terms(::Val{K},::Val{D})
 
 Return the set of multi-indices for the `D`-dimensional Bernstein basis of
@@ -327,6 +328,7 @@ for D=2, K=3.
   terms = tuple(multi_exponents...)
   :( return $terms )
 end
+bernstein_terms(K,D) = bernstein_terms(Val(K),Val(D))
 
 """
     _binomial(::Val{K}, ::Val{I})
