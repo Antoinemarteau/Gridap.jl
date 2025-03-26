@@ -572,11 +572,11 @@ end
 ########################
 
 """
-    _unit_basis_vectors(D)
+    _unit_basis_vectors(Val(D))
 
 Return a length-`D` tuple `e` such that `e[j]` is the tuple (δᵢⱼ)ᵢ.
 """
-_unit_basis_vectors(D) = ntuple( j -> ntuple( i -> i==j, Val(D)), Val(D))
+_unit_basis_vectors(Val(D)) where D = ntuple( j -> ntuple( i -> i==j, Val(D)), Val(D))
 
 """
     _simplex_multi_id_to_linear_id(α::NTuple{N,Int})
@@ -632,7 +632,7 @@ positive (that is `α`[`d`]>0), and `id` is the linear index of `αd⁻`
 """
 function _sub_multi_indices(α::NTuple{N,Int}) where N
   sub_ids = tuple()
-  e = _unit_basis_vectors(N)
+  e = _unit_basis_vectors(Val(N))
   for i in 1:N
     α⁻ =  α .- e[i]
     if all(α⁻ .≥ 0)
@@ -651,7 +651,7 @@ Like [`_sub_multi_indices`](@ref), but return triples (`id`, `t`, `q`) with
 """
 function _sub_sub_multi_indices(α::NTuple{N,Int}) where N
   sub_ids = tuple()
-  e = _unit_basis_vectors(N)
+  e = _unit_basis_vectors(Val(N))
   for i in 1:N
     for j in i:N
       α⁻⁻ = @. α - e[i] - e[j]
@@ -673,7 +673,7 @@ Given a positive multi-index `α`, return a `N`-tuple of couples
 """
 function _sup_multi_indices(α::NTuple{N,Int}) where N
   sup_ids = tuple()
-  e = _unit_basis_vectors(N)
+  e = _unit_basis_vectors(Val(N))
   for i in 1:N
     α⁺ = α .+ e[i]
     id⁺ = _simplex_multi_id_to_linear_id(α⁺)
