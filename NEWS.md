@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added definition for `DiracDelta` with `Triangulation` argument. Since
+  PR[#1087](https://github.com/gridap/Gridap.jl/pull/1087).
+
+### Fixed
+
+- Fixed the failure of hessian over sum/product two `Field`s or `CellField`s as
+  reported in issue [#875](https://github.com/gridap/Gridap.jl/issues/875) by
+  adding the relevant manual chain rules. Since
+  PR[#1053](https://github.com/gridap/Gridap.jl/pull/1053).
+
+### Changed
+
+- Modified the `LinearStageOperator` struct to align it with the `NonlinearStageOperator`. Added `usx`, `ws` and `tx` as new fields in the struct. Since PR[#1089](https://github.com/gridap/Gridap.jl/pull/1089).
+- Misc `TensorValues` improvements since PR [#1092](https://github.com/gridap/Gridap.jl/pull/1092).
+    - `MultiValue`s can now be indexed by tuples of mixed `Integer` and `CartesianIndex`
+    - Indexing in `MultiValue`s now performs bound checks, that can be disabled using `@inbounds` or Gridap's performance execution mode.
+    - Make sure that the result of all operation (empty/zero tensor) of correctly promoted (element) type when applied to tensor(s) of length zero
+    - An argument error is now thrown when calling `tr(::ThirdOrderTensorValue{A,B})` with `A!=B`
+
+## [0.18.10] - 2025-03-04
+
+### Added
+
+- Added corresponding function `get_tangent_vector` to `get_normal_vector`. This method calculates the (unique up to sign) tangential unit vector to edges in 2D meshes, by rotating the normal (nx, ny) -> (ny, -nx). Since PR[#1071](https://github.com/gridap/Gridap.jl/pull/1071).
+
+### Fixed
+
+- Fixed autodiff-related issues [#661](https://github.com/gridap/Gridap.jl/issues/661), [#1052](https://github.com/gridap/Gridap.jl/issues/1052) and [#1085](https://github.com/gridap/Gridap.jl/issues/1085). Since PR[#1070](https://github.com/gridap/Gridap.jl/pull/1070).
+
+### Changed
+
+- `real` and `imag` functions now return a real TensorValue. Since PR[#1080](https://github.com/gridap/Gridap.jl/pull/1080).
+- Refactor of automatic differentiation for multi-field spaces. Now there is a more consistent implementation covering all cases. Since PR[#1070](https://github.com/gridap/Gridap.jl/pull/1070).
+
+## [0.18.9] - 2025-01-13
+
+### Added
+
 - Added AMR-related methods `mark` and `estimate` to `Adaptivity` module. Implemented Dorfler marking strategy. Since PR[#1063](https://github.com/gridap/Gridap.jl/pull/1063).
 
 - Documentation and refactoring of Gridap.Polynomials. Since PR[#1072](https://github.com/gridap/Gridap.jl/pull/#1072).
@@ -21,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Nedelec on n-cubes `QGradBasis(PT<:Polynomial, Val(D), order)`
     - Raviart on simplex `PCurlGradBasis(PT<:Polynomial, Val(D), order)`
     - Raviart on n-cubes `QCurlGradBasis(PT<:Polynomial, Val(D), order)`
+
+### Fixed
+
+- BUG in `FineToCoarseFields.jl`. Since PR[#1074](https://github.com/gridap/Gridap.jl/pull/1074).
 
 ### Changed
 
