@@ -298,7 +298,8 @@ Converts the cartesian coordinates `x` into the barycentric coordinates with
 respect to the reference simplex, that is `λ`=(x1, ..., xD, 1-x1-x2-...-xD).
 """
 @inline function _cart_to_bary(x::Point{D,T}, ::Nothing) where {D,T}
-  return SVector(1-sum(x), x...)
+  sum_x = sum(x,init=zero(T))
+  return SVector(1-sum_x, x...)
 end
 
 """
@@ -572,11 +573,11 @@ end
 ########################
 
 """
-    _unit_basis_vectors(Val(D))
+    _unit_basis_vectors(::Val{D})
 
 Return a length-`D` tuple `e` such that `e[j]` is the tuple (δᵢⱼ)ᵢ.
 """
-_unit_basis_vectors(Val(D)) where D = ntuple( j -> ntuple( i -> i==j, Val(D)), Val(D))
+_unit_basis_vectors(::Val{D}) where D = ntuple( j -> ntuple( i -> i==j, Val(D)), Val(D))
 
 """
     _simplex_multi_id_to_linear_id(α::NTuple{N,Int})
@@ -595,6 +596,7 @@ function _simplex_multi_id_to_linear_id(α::NTuple{N}) where N
   i = sum( _L_slices_size(L, D, _L_slice(L,α)) for L in 1:D) + 1
   return i
 end
+_simplex_multi_id_to_linear_id(α::NTuple{1}) = 1
 
 """
     _L_slice(L,α::NTuple{N}) where N = sum(last(α,N-L))
