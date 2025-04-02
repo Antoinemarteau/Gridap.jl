@@ -147,6 +147,46 @@ Base.getindex(
    a::FieldGradientArray{Ng,A,T,N},i::Vararg{Integer,N}) where {Ng,A,T,N} = gradient(a.fa[i...],Val(Ng))
 Base.IndexStyle(::Type{<:FieldGradientArray{Ng,A}}) where {Ng,A} = IndexStyle(A)
 
+
+# Optimize arrays of field exterior derivavives
+
+"""
+A wrapper that represents the broadcast of `exterior_derivative` over an array of fields.
+"""
+struct FieldExteriorDerivArray{A,T,N} <: AbstractArray{T,N}
+  fa::A
+  function FieldExteriorDerivArray(f::AbstractArray{<:Field})
+    T = typeof(exterior_derivative(testitem(f)))
+    N = ndims(f)
+    A = typeof(f)
+    new{A,T,N}(f)
+  end
+end
+
+function return_value(k::Broadcasting{typeof(𝑑)},a::AbstractArray{<:Field})
+  evaluate(k,a)
+end
+
+function evaluate!(cache,k::Broadcasting{typeof(𝑑)},a::AbstractArray{<:Field})
+  FieldExteriorDerivArray(a)
+end
+
+function exterior_derivative(a::AbstractArray{<:Field})
+  msg =
+  """\n
+  Function exterior_derivative (aka 𝑑) is not defined for arrays of Field objects.
+  Use Broadcasting(𝑑) instead.
+  """
+  @unreachable msg
+end
+
+Base.size(a::FieldExteriorDerivArray) = size(a.fa)
+Base.axes(a::FieldExteriorDerivArray) = axes(a.fa)
+Base.getindex(a::FieldExteriorDerivArray, i::Integer) = exterior_derivative(a.fa[i])
+Base.getindex(
+   a::FieldExteriorDerivArray{A,T,N},i::Vararg{Integer,N}) where {A,T,N} = exterior_derivative(a.fa[i...])
+Base.IndexStyle(::Type{<:FieldExteriorDerivArray{A}}) where A = IndexStyle(A)
+
 # Optimizing linear_combination.
 
 function linear_combination(a::AbstractVector{<:Number},b::AbstractVector{<:Field})
@@ -538,7 +578,7 @@ for T in (:(Point),:(AbstractArray{<:Point}))
       cf = return_cache(f,gx)
       return cg, cf
     end
-    
+
     function evaluate!(cache, k::BroadcastOpFieldArray{typeof(∘)},x::$T)
       cg, cf = cache
       f, g = k.args
@@ -733,7 +773,7 @@ for op in (:*,:⋅,:⊙,:⊗)
   end
 end
 
-# Optimisations to 
+# Optimisations to
 # lazy_map(Broadcasting(constant_field),a::AbstractArray{<:AbstractArray{<:Number}})
 
 struct ConstantFieldArray{T,N,A} <: AbstractArray{ConstantField{T},N}
