@@ -55,6 +55,8 @@ export ConstantField
 export constant_field
 export FieldGradient
 export FieldGradientArray
+export FieldExteriorDerivative
+export FieldExteriorDerivArray
 export ZeroField
 export MockField
 export MockFieldArray
@@ -80,6 +82,10 @@ export DIV
 export Δ
 export ε
 export symmetric_gradient
+
+export exterior_derivative
+export 𝑑
+export exterior_derivative_type
 
 export test_field
 export test_field_array

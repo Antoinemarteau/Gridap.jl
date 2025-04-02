@@ -110,8 +110,7 @@ end
 
 """
 Type that represents the gradient of a field. The wrapped field must
-implement `evaluate_gradient!` and `return_gradient_cache` for this gradient
-to work.
+implement the `Map` interface for this gradient to work.
 
 N is how many times the gradient is applied
 """
@@ -156,6 +155,42 @@ function evaluate!(c,f::Field,x::AbstractArray{<:Point})
   end
   r
 end
+
+# Differentiation of forms
+
+function exterior_derivative end
+"""
+    const 𝑑 = exterior_derivative
+
+Alias for `exterior_derivative` of differential forms
+"""
+const 𝑑 = exterior_derivative
+
+"""
+Type that represents the `exterior_derivative` of a field.
+"""
+struct FieldExteriorDerivative{F} <: Field
+  object::F
+  FieldExteriorDerivative(object::F) where F = new{F}(object)
+end
+
+exterior_derivative(f::Field) = FieldExteriorDerivative(f)
+#exterior_derivative(f::FieldExteriorDerivative) = ZeroForm?(f.object)
+
+testargs(f::FieldExteriorDerivative,x::Point) = testargs(f.object,x)
+return_value(f::FieldExteriorDerivative,x::Point) = evaluate(f,testargs(f,x)...)
+return_cache(f::FieldExteriorDerivative,x::Point) = nothing
+evaluate!(cache,f::FieldExteriorDerivative,x::Point) = @abstractmethod
+testvalue(::Type{FieldExteriorDerivative{T}}) where T = FieldExteriorDerivative(testvalue(T))
+
+"""
+    exterior_derivative_type(D::Int,k::Int,::Type{T}) where T
+"""
+function exterior_derivative_type(D::Int,k::Int,::Type{T}) where T
+  L = binomial(D,k+1)
+  return VectorValue{L,T}
+end
+
 
 # GenericField
 
