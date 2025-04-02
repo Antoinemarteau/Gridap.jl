@@ -183,6 +183,30 @@ function evaluate!(cache,
 end
 
 
+function return_cache(
+  fd::FieldExteriorDerivArray{<:PolynomialBasis{D,V}},
+  x::AbstractVector{<:Point}) where {D,V}
+
+  @abstractmethod
+end
+
+function evaluate!(cache,
+  fd::FieldExteriorDerivArray{<:PolynomialBasis{D,V}},
+  x::AbstractVector{<:Point}) where {D,V}
+
+  f = fd.fa
+  r, s, c, g = cache
+  np = length(x)
+  _setsize!(f,np,r,c,g)
+  for i in 1:np
+    @inbounds xi = x[i]
+    _exterior_derivative_nd!(f,xi,r,i,c,g,s)
+  end
+  r.array
+end
+
+
+
 ##############################################
 # Optimizing of evaluation at a single point #
 ##############################################
@@ -279,6 +303,19 @@ function _hessian_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, h, s::
   @abstractmethod
 end
 
+"""
+    _exterior_derivative_nd!(b,xi,r,i,c,d,s)
+
+Compute and assign: `r`[`i`] = 𝑑`b`(`xi`) = (𝑑`b`₁(`xi`), ..., 𝑑`b`ₙ(`xi`))
+
+where n = length(`b`) (cardinal of the basis)
+
+- `d` is an implementation specific cache for temporary computation of 𝑑`b`(`xi`).
+- `s` is a mutable length `D` cache for 𝑑`b`ₖ(`xi`).
+"""
+function _exterior_derivative_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, d, s::MVector)
+  @abstractmethod
+end
 
 ###############################
 # 1D internal polynomial APIs #

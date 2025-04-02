@@ -102,7 +102,9 @@ PLambdaBasis.Ψ matrix elements in the reference simplex, T is the scalar return
 function _hat_Ψ(r,α,F,I,J,::Type{T})::T where T
   @check sum(α) == r
   @check length(I) == length(J) # thanks to dispatch on zero length J below
-  @check length(J) > 0 # thanks to dispatch on zero length J below
+
+  iszero(length(J)) && return one(T) # 0 forms
+  Vk = Val(length(J))
 
   @inbounds begin
 
@@ -124,7 +126,7 @@ function _hat_Ψ(r,α,F,I,J,::Type{T})::T where T
       return (-1)^(m+p+q) * u_m * (v_q - v_p)
     end
 
-    u, v = _u(F,I), _v(α,J,r)
+    u, v = _u(F,I,Vk), _v(α,J,r,Vk)
     if iszero(s)
       return 1 + sum( u .* v )
     else
@@ -146,7 +148,6 @@ function _hat_Ψ(r,α,F,I,J,::Type{T})::T where T
   end
   @unreachable
 end
-_hat_Ψ(r,α,F,I,J::Combination{0},::Type{T}) where T = one(T) # 0 forms
 
 @propagate_inbounds function _find_first_val_or_zero(pred, start, stop)
   r = findfirst(pred,start:stop)
@@ -154,9 +155,9 @@ _hat_Ψ(r,α,F,I,J::Combination{0},::Type{T}) where T = one(T) # 0 forms
 end
 
 @propagate_inbounds _u(i,F,I)   = Int(isone(F[1])) - Int(I[i]+1 in F)
-@propagate_inbounds _u(F,I::Combination{k}) where k = ntuple(i->_u(i,F,I), Val(k))
+@propagate_inbounds _u(F,I::Combination,::Val{k}) where k = ntuple(i->_u(i,F,I), Val(k))
 @propagate_inbounds _v(j,α,J,r) = α[J[j]]/r
-@propagate_inbounds _v(α,J::Combination{k},r) where k = ntuple(j->_v(j,α,J,r), Val(k))
+@propagate_inbounds _v(α,J::Combination,r,::Val{k}) where k = ntuple(j->_v(j,α,J,r), Val(k))
 
 
 # API
@@ -169,7 +170,7 @@ function _return_cache(
   r = get_order(b)
   np = length(x)
   ndof = length(b)
-  ndof_bernstein = binomial(r+D,D)
+  ndof_bernstein = length(b.scalar_bernstein_basis)
 
   r = CachedArray(zeros(G,(np,ndof)))
   # Cache for all scalar nD-Bernstein polynomials
@@ -193,7 +194,7 @@ end
 function _setsize!(b::PLambdaBasis{D}, np, ω, t...) where D
   r = get_order(b)
   ndof = length(b)
-  ndof_bernstein = binomial(r+D,D)
+  ndof_bernstein = length(b.scalar_bernstein_basis)
   setsize!(ω,(np,ndof))
   setsize!(t[1],(ndof_bernstein,))
   if length(t) > 1
@@ -214,6 +215,8 @@ function _evaluate_nd!(
   c[1] = one(T)
   _downwards_de_Casteljau_nD!(c,λ,Val(r),Val(D))
 
+  # TODO optimize, this is type unstable, return vectors instead of tuples in PΛ ? (and use @inbounds?)
+  # pass Val(r), Val(k) ?
   for (_, _, dF_bubbles) in PΛ_bubble_indices(r,k,D)
     for (w, α, _) in dF_bubbles
       id_α = _simplex_multi_id_to_linear_id(α) # TODO optimize this
@@ -263,45 +266,67 @@ function _hessian_nd!(
 end
 
 
+
+function return_cache(
+  fd::FieldExteriorDerivArray{<:PLambdaBasis{D,V}},
+  x::AbstractVector{<:Point}) where {D,V}
+
+  @assert D == length(eltype(x)) "Incorrect number of point components"
+  b = fd.fa
+  T = eltype(V)
+  r = get_order(b)
+  k = get_FEEC_form_degree(b)
+  np = length(x)
+  ndof = length(b)
+  ndof_bernstein = length(b.scalar_bernstein_basis)
+
+  dV = exterior_derivative_type(D,k,T)
+  r = CachedArray(zeros(dV,(np,ndof)))
+  # Cache for all scalar nD-Bernstein polynomials
+  cB = CachedVector(zeros(T,ndof_bernstein))
+  # Cache for all gradients of scalar nD-Bernstein polynomials
+  GB = VectorValue{D,T}
+  ∇B = CachedArray(zeros(GB,(1,ndof_bernstein)))
+  s = MVector{D,T}(undef)
+  (r, s, cB, ∇B)
+end
+
+function _exterior_derivative_nd!(
+   b::PLambdaBasis{D,T}, x,
+  dω::AbstractMatrix{V}, i,
+   c::AbstractVector{T},
+  ∇B::AbstractMatrix{VectorValue{D,T}},
+   s::MVector{D,T}) where {D,V,T}
+
+  r = get_FEEC_poly_degree(b)
+  k = get_FEEC_form_degree(b)
+  _gradient_nd!(b.scalar_bernstein_basis, x, ∇B, 1, c, nothing, s)
+
+  dω_w = Mutable(V)(undef)
+  for (_, _, dF_bubbles) in PΛ_bubble_indices(r,k,D)
+    for (w, α, _) in dF_bubbles
+      id_α = _simplex_multi_id_to_linear_id(α) # TODO optimize this
+      dω_w .= zero(T)
+      for (iI,I) in enumerate(sorted_combinations(D,k+1))
+        for (q,I_q) in enumerate(sub_combinations(I))
+          I_q_ID = combination_index(I_q)
+          @inbounds dω_w[iI] -= (-1)^q * b.Ψ[I_q_ID,w] * ∇B[1,id_α][I[q]]
+        end
+      end
+      dω[i,w] = dω_w
+    end
+  end
+end
+
+
+
 ##########################
 # PLambda bases helpers  #
 ##########################
 
-PΛ_bubble_indices(r,k,D) = PΛ_bubble_indices(Val(r),Val(k),Val(D))
-@generated function PΛ_bubble_indices(::Val{r},::Val{k},::Val{D}) where {r,k,D}
-  i=0
-  d_F_bubbles = []
-  for d in k:D
-    for F in sorted_combinations(D+1, d+1)
-      dF_bubbles = _PΛ_F_bubble_indices(r,k,D,F,i)
-      push!(d_F_bubbles, (d, F, dF_bubbles))
-      i += length(dF_bubbles)
-    end
-  end
-  @check i == binomial(r+k,k)*binomial(D+r,D-k)
-  d_F_bubbles = tuple(d_F_bubbles...)
-  :( $(d_F_bubbles) )
-end
-
-P⁻Λ_bubble_indices(r,k,D) = P⁻Λ_bubble_indices(Val(r),Val(k),Val(D))
-@generated function P⁻Λ_bubble_indices(::Val{r},::Val{k},::Val{D}) where {r,k,D}
-  i=0
-  d_F_bubbles = []
-  for d in k:D
-    for F in sorted_combinations(D+1, d+1)
-      dF_bubbles = _P⁻Λ_F_bubble_indices(r,k,D,F,i)
-      push!(d_F_bubbles, (d, F, dF_bubbles))
-      i += length(dF_bubbles)
-    end
-  end
-  @check i == binomial(r+k-1,k)*binomial(D+r,D-k)
-  d_F_bubbles = tuple(d_F_bubbles...)
-  :( $(d_F_bubbles) )
-end
-
 function _P⁻Λ_F_bubble_indices(r,k,D,F,i)
   N = D + 1
-  ids = []
+  ids = Tuple{Int64, NTuple{N+1, Int64}, Combination{N}}[]
   for α in bernstein_terms(r-1,N)
     for J in sorted_combinations(N,k+1)
       j = minimum(J)-1
@@ -311,24 +336,56 @@ function _P⁻Λ_F_bubble_indices(r,k,D,F,i)
       end
     end
   end
-  tuple(ids...)
+  ids
 end
 
 function _PΛ_F_bubble_indices(r,k,D,F,i)
   N = D + 1
-  ids = []
+  ids = Tuple{Int64, NTuple{D+1, Int64}, Combination{N}}[]
   for α in bernstein_terms(r,D)
     for J in sorted_combinations(N,k)
-      j = minimum(setdiff(F,J))-1
+      j = minimum(setdiff(F,J), init=N+1)
+      j = j==(N+1) ? 0 : j-1
       if issetequal(supp(α) ∪ J, F) && all(α[1:j] .== 0)
         i += 1
         push!(ids, (i, α, J))
       end
     end
   end
-  tuple(ids...)
+  ids
 end
 
+PΛ_bubble_indices(r,k,D) = PΛ_bubble_indices(Val(r),Val(k),Val(D))
+@generated function PΛ_bubble_indices(::Val{r},::Val{k},::Val{D}) where {r,k,D}
+  i=0
+  N = D+1
+  d_F_bubbles = Tuple{Int64, Combination{N}, Vector{Tuple{Int64, NTuple{N, Int64}, Combination{N}}}}[]
+  for d in k:D
+    for F in sorted_combinations(D+1, d+1)
+      dF_bubbles = _PΛ_F_bubble_indices(r,k,D,F,i)
+      push!(d_F_bubbles, (d, F, dF_bubbles))
+      i += length(dF_bubbles)
+    end
+  end
+  @check i == binomial(r+k,k)*binomial(D+r,D-k)
+  :( $(d_F_bubbles) )
+end
+
+P⁻Λ_bubble_indices(r,k,D) = P⁻Λ_bubble_indices(Val(r),Val(k),Val(D))
+@generated function P⁻Λ_bubble_indices(::Val{r},::Val{k},::Val{D}) where {r,k,D}
+  i=0
+  N = D + 1
+  d_F_bubbles = Tuple{Int64, Combination{N}, Vector{Tuple{Int64, NTuple{N+1, Int64}, Combination{N}}}}[]
+  for d in k:D
+    for F in sorted_combinations(D+1, d+1)
+      dF_bubbles = _P⁻Λ_F_bubble_indices(r,k,D,F,i)
+      push!(d_F_bubbles, (d, F, dF_bubbles))
+      i += length(dF_bubbles)
+    end
+  end
+  @check i == binomial(r+k-1,k)*binomial(D+r,D-k)
+  :( $(d_F_bubbles) )
+end
 
 """
 supp(α)
