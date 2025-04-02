@@ -331,6 +331,7 @@ for D=2, K=3.
   terms = tuple(multi_exponents...)
   :( return $terms )
 end
+
 bernstein_terms(K,D) = bernstein_terms(Val(K),Val(D))
 
 
@@ -368,12 +369,11 @@ end
 function _evaluate_nd!(
   b::BernsteinBasisOnSimplex{D,V}, x,
   r::AbstractMatrix{V}, i,
-  c::AbstractVector{T}) where {D,V,T}
+  c::AbstractVector{T}, VK::Val) where {D,V,T}
 
-  K = get_order(b)
   λ = _cart_to_bary(x, b.cart_to_bary_matrix)
   c[1] = one(T)
-  _downwards_de_Casteljau_nD!(c,λ,Val(K),Val(D))
+  _downwards_de_Casteljau_nD!(c,λ,VK,Val(D))
 
   k = 1
   for s in c
@@ -386,9 +386,8 @@ function _gradient_nd!(
   r::AbstractMatrix{G}, i,
   c::AbstractVector{T},
   g::Nothing,
-  s::MVector{D,T}) where {D,V,G,T}
+  s::MVector{D,T}, ::Val{K}) where {D,V,G,T,K}
 
-  K = get_order(b)
   x_to_λ = b.cart_to_bary_matrix
   λ = _cart_to_bary(x, x_to_λ)
 
@@ -404,9 +403,8 @@ function _hessian_nd!(
   c::AbstractVector{T},
   g::Nothing,
   h::Nothing,
-  s::MMatrix{D,D,T}) where {D,V,G,T}
+  s::MMatrix{D,D,T}, ::Val{K}) where {D,V,G,T,K}
 
-  K = get_order(b)
   x_to_λ = b.cart_to_bary_matrix
   λ = _cart_to_bary(x, x_to_λ)
 

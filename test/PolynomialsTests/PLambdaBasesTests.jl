@@ -297,23 +297,23 @@ Hbx = evaluate(Broadcasting(∇∇)(b),x)
 dbx = evaluate(Broadcasting(𝑑)(b),x)
 divbx=evaluate(Broadcasting(hodge_and_div)(b),x)
 
-cdb = return_cache(Broadcasting(∇)(b),x)
-@profview for _ in 1:1000 evaluate!(cdb,Broadcasting(∇)(b),x) end
-
-r, s, c, g = cdb
-np = length(x)
-Polynomials._setsize!(b,np,r,c,g)
-Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
-@code_warntype Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
-
-const xx = [xi for xi in vertices]
-const bb = PLambdaBasis(Val(D),T,r,k)
-const 𝑑bb = Broadcasting(𝑑)(bb)
-const dbb = Broadcasting(hodge_and_div)(bb)
-const c𝑑bb = return_cache(𝑑bb,xx)
-const cdbb = return_cache(dbb,xx)
-@btime evaluate!($c𝑑bb,$𝑑bb,$xx)
-@btime evaluate!($cdbb,$dbb,$xx)
+#cdb = return_cache(Broadcasting(∇)(b),x)
+#@profview for _ in 1:1000 evaluate!(cdb,Broadcasting(∇)(b),x) end
+#
+#r, s, c, g = cdb
+#np = length(x)
+#Polynomials._setsize!(b,np,r,c,g)
+#Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
+#@code_warntype Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
+#
+#const xx = [xi for xi in vertices]
+#const bb = PLambdaBasis(Val(D),T,r,k)
+#const 𝑑bb = Broadcasting(𝑑)(bb)
+#const dbb = Broadcasting(hodge_and_div)(bb)
+#const c𝑑bb = return_cache(𝑑bb,xx)
+#const cdbb = return_cache(dbb,xx)
+#@btime evaluate!($c𝑑bb,$𝑑bb,$xx)
+#@btime evaluate!($cdbb,$dbb,$xx)
 
 dbx = reinterpret(Float64, dbx)
 @test all(divbx .≈ dbx)

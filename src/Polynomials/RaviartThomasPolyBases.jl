@@ -67,15 +67,10 @@ get_order(b::RaviartThomasPolyBasis) = b.max_order
 function _evaluate_nd!(
   b::RaviartThomasPolyBasis{D,V,PT}, x,
   r::AbstractMatrix{V}, i,
-  c::AbstractMatrix{T}) where {D,V,PT,T}
+  c::AbstractMatrix{T}, VK::Val) where {D,V,PT,T}
 
-  K = get_order(b)
-  pterms = b.pterms
-  sterms = b.sterms
-
-  Kv = Val(K)
   for d in 1:D
-    _evaluate_1d!(PT,Kv,c,x,d)
+    _evaluate_1d!(PT,VK,c,x,d)
   end
 
   m = zero(Mutable(V))
@@ -83,7 +78,7 @@ function _evaluate_nd!(
 
   @inbounds begin
     for l in 1:D
-      for ci in pterms
+      for ci in b.pterms
 
         s = one(T)
         for d in 1:D
@@ -94,7 +89,7 @@ function _evaluate_nd!(
       end
     end
 
-    for ci in sterms
+    for ci in b.sterms
       for i in 1:D
         m[i] = zero(T)
       end
@@ -121,15 +116,10 @@ function _gradient_nd!(
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
-  s::MVector{D,T}) where {D,V,PT,G,T}
+  s::MVector{D,T}, VK::Val) where {D,V,PT,G,T}
 
-  K = get_order(b)
-  pterms = b.pterms
-  sterms = b.sterms
-
-  Kv = Val(K)
   for d in 1:D
-    _derivatives_1d!(PT,Kv,(c,g),x,d)
+    _derivatives_1d!(PT,VK,(c,g),x,d)
   end
 
   m = zero(Mutable(G))
@@ -137,7 +127,7 @@ function _gradient_nd!(
 
   @inbounds begin
     for l in 1:D
-      for ci in pterms
+      for ci in b.pterms
 
         for i in eachindex(s)
           s[i] = one(T)
@@ -157,7 +147,7 @@ function _gradient_nd!(
       end
     end
 
-    for ci in sterms
+    for ci in b.sterms
 
       for i in eachindex(m)
         m[i] = zero(T)

@@ -138,23 +138,18 @@ end
 function _evaluate_nd!(
   b::CartProdPolyBasis{D,V,PT}, x,
   r::AbstractMatrix{V}, i,
-  c::AbstractMatrix{T}) where {D,V,PT,T}
+  c::AbstractMatrix{T}, VK::Val) where {D,V,PT,T}
 
-  K = get_order(b)
-  terms  = b.terms
-  orders = b.orders
-
-  Kd = Val(K)
   for d in 1:D
     # The optimization below of fine tuning Kd for `orders` is a bottlneck if
     # `orders` are not passed in `Val`s, due to runtime dispatch depending on
     # none inferable Val(orders[d])
     # Kd = Val(orders[d])
-    _evaluate_1d!(PT,Kd,c,x,d)
+    _evaluate_1d!(PT,VK,c,x,d)
   end
 
   k = 1
-  for ci in terms
+  for ci in b.terms
 
     s = one(T)
     for d in 1:D
@@ -203,19 +198,14 @@ function _gradient_nd!(
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
-  s::MVector{D,T}) where {D,V,PT,G,T}
+  s::MVector{D,T}, VK::Val) where {D,V,PT,G,T}
 
-  K = get_order(b)
-  terms  = b.terms
-  orders = b.orders
-
-  Kd = Val(K)
   for d in 1:D
-    _derivatives_1d!(PT,Kd,(c,g),x,d)
+    _derivatives_1d!(PT,VK,(c,g),x,d)
   end
 
   k = 1
-  for ci in terms
+  for ci in b.terms
 
     for i in eachindex(s)
       @inbounds s[i] = one(T)
@@ -346,20 +336,15 @@ function _hessian_nd!(
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
   h::AbstractMatrix{T},
-  s::MMatrix{D,D,T}) where {D,V,PT,G,T}
+  s::MMatrix{D,D,T}, VK::Val) where {D,V,PT,G,T}
 
-  K = get_order(b)
-  terms  = b.terms
-  orders = b.orders
-
-  Kd = Val(K)
   for d in 1:D
-    _derivatives_1d!(PT,Kd,(c,g,h),x,d)
+    _derivatives_1d!(PT,VK,(c,g,h),x,d)
   end
 
   k = 1
 
-  for ci in terms
+  for ci in b.terms
 
     for i in eachindex(s)
       @inbounds s[i] = one(T)

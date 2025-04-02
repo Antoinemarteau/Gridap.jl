@@ -202,6 +202,8 @@ function _setsize!(b::PLambdaBasis{D}, np, ω, t...) where D
   end
 end
 
+_get_static_parameters(::PLambdaBasis) = ()
+
 function _evaluate_nd!(
   b::PLambdaBasis{D,T}, x,
   ω::AbstractMatrix{V}, i,
@@ -235,7 +237,7 @@ function _gradient_nd!(
 
   r = get_FEEC_poly_degree(b)
   k = get_FEEC_form_degree(b)
-  _gradient_nd!(b.scalar_bernstein_basis, x, ∇B, 1, c, nothing, s)
+  _gradient_nd!(b.scalar_bernstein_basis, x, ∇B, 1, c, nothing, s, Val(r))
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(r,k,D)
     for (w, α, _) in dF_bubbles
@@ -255,7 +257,7 @@ function _hessian_nd!(
 
   r = get_FEEC_poly_degree(b)
   k = get_FEEC_form_degree(b)
-  _hessian_nd!(b.scalar_bernstein_basis, x, HB, 1, c, nothing, nothing, s)
+  _hessian_nd!(b.scalar_bernstein_basis, x, HB, 1, c, nothing, nothing, s, Val(r))
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(r,k,D)
     for (w, α, _) in dF_bubbles
@@ -300,7 +302,7 @@ function _exterior_derivative_nd!(
 
   r = get_FEEC_poly_degree(b)
   k = get_FEEC_form_degree(b)
-  _gradient_nd!(b.scalar_bernstein_basis, x, ∇B, 1, c, nothing, s)
+  _gradient_nd!(b.scalar_bernstein_basis, x, ∇B, 1, c, nothing, s, Val(r))
 
   dω_w = Mutable(V)(undef)
   for (_, _, dF_bubbles) in PΛ_bubble_indices(r,k,D)
