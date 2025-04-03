@@ -589,12 +589,33 @@ where K = sum(`α`). The greater `α` in lexicographic order, that is
 (K, 0, ..., 0), is at index `i=1, and the smaller, (0, ..., 0, K), is at
 index `i`=binom(D+K, D) (where D = #`α`-1, K=|`α`|).
 """
-function _simplex_multi_id_to_linear_id(α::NTuple{N}) where N
-  D = N-1
-  i = sum( _L_slices_size(L, D, _L_slice(L,α)) for L in 1:D) + 1
-  return i
+_simplex_multi_id_to_linear_id(α::NTuple{1})::Int = 1
+
+const memo_simplex_multi_id = Dict{Tuple,Int}()
+
+const MAX_PRECOMP_ORDER = 10
+
+for D in 0:MAX_PRECOMP_D
+  for k in 0:MAX_PRECOMP_ORDER
+    for (i,α) in enumerate(bernstein_terms(k,D))
+      memo_simplex_multi_id[α] = i
+    end
+  end
 end
-_simplex_multi_id_to_linear_id(α::NTuple{1}) = 1
+
+function _simplex_multi_id_to_linear_id(α::NTuple{N})::Int where N
+  if haskey(memo_simplex_multi_id, α)
+    return memo_simplex_multi_id[α]
+  else
+    D = N-1
+    k = sum(α, init=0)
+    #i = sum( _L_slices_size(L, D, _L_slice(L,α)) for L in 1:D) + 1
+    i = findfirst(==(α), bernstein_terms(k,D))
+    isnothing(i) && @unreachable
+    memo_simplex_multi_id[α] = i
+    return i
+  end
+end
 
 """
     _L_slice(L,α::NTuple{N}) where N = sum(last(α,N-L))

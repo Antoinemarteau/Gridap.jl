@@ -63,13 +63,13 @@ function _compute_PΛ_basis_form_coefficient!(Ψ,r,k,D,b,vertices)
   α_prec = ntuple(_->-1, N)
   φ_αF = MMatrix{D,N,T}(undef)
   for (_, F, dF_bubbles) in PΛ_bubble_indices(r,k,D)
-    for (w, α, J) in dF_bubbles
+    for (w, α, _, J) in dF_bubbles
       if α ≠ α_prec
         update_φ_αF!(φ_αF,b,α,F,r)
         α_prec = α
       end
-      for (iI,I) in enumerate(sorted_combinations(D,k))
-        Ψ[iI,w] = @inline minor(φ_αF,I,J)
+      for (I_id,I) in enumerate(sorted_combinations(D,k))
+        Ψ[I_id,w] = @inline minor(φ_αF,I,J)
       end
     end
   end
@@ -87,9 +87,9 @@ end
 function _compute_PΛ_basis_form_coefficient!(Ψ,r,k,D,b,::Nothing)
   T = eltype(Ψ)
   for (_, F, dF_bubbles) in PΛ_bubble_indices(r,k,D)
-    for (w, α, J) in dF_bubbles
-      for (iI,I) in enumerate(sorted_combinations(D,k))
-        Ψ[iI,w] = _hat_Ψ(r,α,F,I,J,T)
+    for (w, α, _, J) in dF_bubbles
+      for (I_id,I) in enumerate(sorted_combinations(D,k))
+        Ψ[I_id,w] = _hat_Ψ(r,α,F,I,J,T)
       end
     end
   end
@@ -222,10 +222,8 @@ function _evaluate_nd!(
   _downwards_de_Casteljau_nD!(c,λ,Val(r),Val(D))
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
-    for (w, α, _) in dF_bubbles
-      id_α = _simplex_multi_id_to_linear_id(α) # TODO optimize this
-      #println("α $α, r $r, k $k, D $D, id_α $id_α, c $c")
-      ω[i,w] = c[id_α] .* VectorValue(b.Ψ[:,w]) # Bα(x)*Ψ_w
+    for (w, _, α_id, _) in dF_bubbles
+      ω[i,w] = c[α_id] .* VectorValue(b.Ψ[:,w]) # Bα(x)*Ψ_w
     end
   end
 end
@@ -241,9 +239,8 @@ function _gradient_nd!(
   _gradient_nd!(b.scalar_bernstein_basis, x, ∇B, 1, c, nothing, s, Val(r))
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
-    for (w, α, _) in dF_bubbles
-      id_α = _simplex_multi_id_to_linear_id(α)
-      @inbounds ∇ω[i,w] = ∇B[1,id_α] ⊗  VectorValue(b.Ψ[:,w])
+    for (w, _, α_id, _) in dF_bubbles
+      @inbounds ∇ω[i,w] = ∇B[1,α_id] ⊗  VectorValue(b.Ψ[:,w])
     end
   end
 end
@@ -260,13 +257,11 @@ function _hessian_nd!(
   _hessian_nd!(b.scalar_bernstein_basis, x, HB, 1, c, nothing, nothing, s, Val(r))
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
-    for (w, α, _) in dF_bubbles
-      id_α = _simplex_multi_id_to_linear_id(α)
-      Hω[i,w] = HB[1,id_α] ⊗  VectorValue(b.Ψ[:,w])
+    for (w, _, α_id, _) in dF_bubbles
+      Hω[i,w] = HB[1,α_id] ⊗  VectorValue(b.Ψ[:,w])
     end
   end
 end
-
 
 
 function return_cache(
@@ -305,13 +300,15 @@ function _exterior_derivative_nd!(
 
   dω_w = Mutable(V)(undef)
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
-    for (w, α, _) in dF_bubbles
-      id_α = _simplex_multi_id_to_linear_id(α)
+    for (w, _, α_id, _) in dF_bubbles
       dω_w .= zero(T)
-      for (iI,I) in enumerate(sorted_combinations(D,k+1))
-        for (q,I_q) in enumerate(sub_combinations(I))
-          I_q_ID = combination_index(I_q)
-          @inbounds dω_w[iI] -= (-1)^q * b.Ψ[I_q_ID,w] * ∇B[1,id_α][I[q]]
+      # Running through the next iterators at runtime is likely responsible for
+      # a X2 slowdown compared to regular curl / div, this might be optimisable
+      # using another generated function computing dω_w
+      for (I_id, I, I_sub_combis) in sorted_and_sub_combinations(Val(D),Val(k+1))
+        for (q, _, I_sub_q_id) in I_sub_combis
+          sgn = iseven(q) ? -one(T) : one(T)
+          @inbounds dω_w[I_id] += sgn * b.Ψ[I_sub_q_id,w] * ∇B[1,α_id][I[q]]
         end
       end
       dω[i,w] = dω_w
@@ -320,20 +317,20 @@ function _exterior_derivative_nd!(
 end
 
 
-
 ##########################
 # PLambda bases helpers  #
 ##########################
 
 function _P⁻Λ_F_bubble_indices(r,k,D,F,i)
   N = D + 1
-  ids = Tuple{Int64, NTuple{N+1, Int64}, Combination{N}}[]
+  ids = Tuple{Int64, NTuple{N+1, Int64}, Int, Combination{N}}[]
   for α in bernstein_terms(r-1,N)
     for J in sorted_combinations(N,k+1)
       j = minimum(J)-1
       if issetequal(supp(α) ∪ J, F) && all(α[1:j] .== 0)
         i += 1
-        push!(ids, (i, α, J))
+        α_id = _simplex_multi_id_to_linear_id(α)
+        push!(ids, (i, α, α_id, J))
       end
     end
   end
@@ -342,14 +339,15 @@ end
 
 function _PΛ_F_bubble_indices(r,k,D,F,i)
   N = D + 1
-  ids = Tuple{Int64, NTuple{D+1, Int64}, Combination{N}}[]
+  ids = Tuple{Int64, NTuple{D+1, Int64}, Int, Combination{N}}[]
   for α in bernstein_terms(r,D)
     for J in sorted_combinations(N,k)
       j = minimum(setdiff(F,J), init=N+1)
       j = j==(N+1) ? 0 : j-1
       if issetequal(supp(α) ∪ J, F) && all(α[1:j] .== 0)
         i += 1
-        push!(ids, (i, α, J))
+        α_id = _simplex_multi_id_to_linear_id(α)
+        push!(ids, (i, α, α_id, J))
       end
     end
   end
@@ -360,7 +358,7 @@ PΛ_bubble_indices(r,k,D) = PΛ_bubble_indices(Val(r),Val(k),Val(D))
 @generated function PΛ_bubble_indices(::Val{r},::Val{k},::Val{D}) where {r,k,D}
   i=0
   N = D+1
-  d_F_bubbles = Tuple{Int64, Combination{N}, Vector{Tuple{Int64, NTuple{N, Int64}, Combination{N}}}}[]
+  d_F_bubbles = Tuple{Int64, Combination{N}, Vector{Tuple{Int64, NTuple{N, Int64}, Int, Combination{N}}}}[]
   for d in k:D
     for F in sorted_combinations(D+1, d+1)
       dF_bubbles = _PΛ_F_bubble_indices(r,k,D,F,i)
@@ -376,7 +374,7 @@ P⁻Λ_bubble_indices(r,k,D) = P⁻Λ_bubble_indices(Val(r),Val(k),Val(D))
 @generated function P⁻Λ_bubble_indices(::Val{r},::Val{k},::Val{D}) where {r,k,D}
   i=0
   N = D + 1
-  d_F_bubbles = Tuple{Int64, Combination{N}, Vector{Tuple{Int64, NTuple{N+1, Int64}, Combination{N}}}}[]
+  d_F_bubbles = Tuple{Int64, Combination{N}, Vector{Tuple{Int64, NTuple{N+1, Int64}, Int, Combination{N}}}}[]
   for d in k:D
     for F in sorted_combinations(D+1, d+1)
       dF_bubbles = _P⁻Λ_F_bubble_indices(r,k,D,F,i)
@@ -386,6 +384,21 @@ P⁻Λ_bubble_indices(r,k,D) = P⁻Λ_bubble_indices(Val(r),Val(k),Val(D))
   end
   @check i == binomial(r+k-1,k)*binomial(D+r,D-k)
   :( $(d_F_bubbles) )
+end
+
+sorted_and_sub_combinations(::Val,::Val{0}) = Tuple{}[]
+@generated function sorted_and_sub_combinations(::Val{D},::Val{k}) where {D,k}
+  @check k>0
+  res = Tuple{Int, Combination{D}, Vector{Tuple{Int, Combination{D}, Int}}}[]
+  for (I_id,I) in enumerate(sorted_combinations(D,k))
+    sub_combis = Tuple{Int, Combination{D}, Int}[]
+    for (q,I_sub_q) in enumerate(sub_combinations(I))
+      I_sub_q_id = combination_index(I_sub_q)
+      push!(sub_combis, (q, I_sub_q, I_sub_q_id) )
+    end
+    push!(res, (I_id, I, sub_combis))
+  end
+  :( $(res) )
 end
 
 """
