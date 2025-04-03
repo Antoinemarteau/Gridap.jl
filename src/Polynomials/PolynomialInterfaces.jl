@@ -218,7 +218,6 @@ function evaluate!(cache,
 end
 
 
-
 ##############################################
 # Optimizing of evaluation at a single point #
 ##############################################
