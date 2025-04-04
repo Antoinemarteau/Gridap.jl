@@ -2,13 +2,13 @@
 # SymTensorValue Type
 ###############################################################
 """
-    AbstractSymTensorValue{D,T,L} <: MultiValue{Tuple{D,D},T,2,L}
+    AbstractSymTensorValue{D,T,L} <: ArrayMultiValue{Tuple{D,D},T,2,L}
 
 Abstract type representing any symmetric second-order `D`×`D` tensor, with symmetry ij↔ji.
 
 See also [`SymTensorValue`](@ref), [`SymTracelessTensorValue`](@ref).
 """
-abstract type AbstractSymTensorValue{D,T,L} <: MultiValue{Tuple{D,D},T,2,L} end
+abstract type AbstractSymTensorValue{D,T,L} <: ArrayMultiValue{Tuple{D,D},T,2,L} end
 
 """
     SymTensorValue{D,T,L} <: AbstractSymTensorValue{D,T,L}

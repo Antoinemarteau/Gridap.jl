@@ -1,12 +1,12 @@
 
 """
-    ThirdOrderTensorValue{D1,D2,D3,T,L} <: MultiValue{Tuple{D1,D2,D3},T,3,L}
+    ThirdOrderTensorValue{D1,D2,D3,T,L} <: ArrayMultiValue{Tuple{D1,D2,D3},T,3,L}
 
 Type representing a third-order `D1`×`D2`×`D3` tensor. It must hold `L` = `D1`\\*`D2`\\*`D3`.
 
 If only `D1` or no dimension parameter is given to the constructor, `D1`=`D2`=`D3` is assumed.
 """
-struct ThirdOrderTensorValue{D1,D2,D3,T,L} <: MultiValue{Tuple{D1,D2,D3},T,3,L}
+struct ThirdOrderTensorValue{D1,D2,D3,T,L} <: ArrayMultiValue{Tuple{D1,D2,D3},T,3,L}
     data::NTuple{L,T}
     function ThirdOrderTensorValue{D1,D2,D3,T}(data::NTuple{L,T}) where {D1,D2,D3,T,L}
         @check L == D1*D2*D3

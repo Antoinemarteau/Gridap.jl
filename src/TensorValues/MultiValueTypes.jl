@@ -3,17 +3,16 @@
 ###############################################################
 
 """
-    MultiValue{S,T,N,L} <: Number
+    MultiValue{T,L} <: Number
 
-Abstract type representing a multi-dimensional number value. The parameters are analog to that of StaticArrays.jl:
-- `S` is a Tuple type holding the size of the tensor, e.g. Tuple{3} for a 3d vector or Tuple{2,4} for a 2 rows and 4 columns tensor,
+Abstract type representing a multi-dimensional number value.
 - `T` is the type of the scalar components, should be subtype of `Number`,
-- `N` is the order of the tensor, the length of `S`,
-- `L` is the number of components stored internally.
+- `L` is the number of components (scalars) of type `T` stored internally.
 
-`MultiValue`s are immutable.
+Concrete instances are immutable. `MultiValue`s implement the `AbstractArray`
+interface except of `setindex!` and `similar`.
 """
-abstract type MultiValue{S,T,N,L} <: Number end
+abstract type MultiValue{T,L} <: Number end
 
 @inline Base.Tuple(arg::MultiValue) = arg.data
 
@@ -28,9 +27,25 @@ function show(io::IO,::MIME"text/plain",v:: MultiValue)
   print(io,v.data)
 end
 
-###############################################################
+
+"""
+    abstract type CalculusStyle
+
+Trait that signals if a quantity or field belongs to the formalism of traditional
+vector (differential) calculus (trait value [`VectorCalculus()`](@ref VectorCalculus)),
+or in the formalism of differential geometry calculus (trait value
+[`DiffGeoCalculus()`](@ref DiffGeoCalculus)).
+"""
+abstract type CalculusStyle end
+struct VectorCalculus <: CalculusStyle end
+struct DiffGeoCalculus <: CalculusStyle end
+
+CalculusStyle(::Type) = VectorCalculus()
+
+
+#######################################################################
 # Other constructors and conversions implemented for more generic types
-###############################################################
+#######################################################################
 
 """
     change_eltype(m::Number,::Type{T2})
@@ -139,6 +154,65 @@ If all dimensions of the tensor shape S are smaller than 3, the components
 are named with letters "X","Y" and "Z" similarly to the automatic naming
 of Paraview. Else, if max(S)>3, they are labeled by integers starting from "1".
 """
-function indep_components_names(::Type{MultiValue{S,T,N,L}}) where {S,T,N,L}
+function indep_components_names(::Type{<:MultiValue{T,L}}) where {T,L}
   return ["$i" for i in 1:L]
 end
+
+###############################################################
+# ArrayMultiValue Type
+###############################################################
+
+"""
+    ArrayMultiValue{S,T,N,L} <: MultiValue{T,L}
+
+Abstract type representing a multi-dimensional number value. The parameters are
+analog to that of StaticArrays.jl:
+- `S` is a Tuple type holding the size of the tensor, e.g. Tuple{3} for a 3d vector or Tuple{2,4} for a 2 rows and 4 columns tensor,
+- `T` is the type of the scalar components, should be subtype of `Number`,
+- `N` is the order of the tensor, the length of `S`,
+- `L` is the number of components stored internally.
+
+`ArrayMultiValue`s are immutable.
+"""
+abstract type ArrayMultiValue{S,T,N,L} <: MultiValue{T,L} end
+
+
+###############################################################
+# AbstractDifferentialTensorValue Type
+###############################################################
+
+"""
+    AbstractDGTensorValue{D,R,S,T,L} <: MultiValue{T,L}
+
+Abstract type for values of type-(`R`,`S`) tensors
+- `D` is the spatial dimension
+- `R` is contravariant index
+- `S` is covariant index
+- `T` is the type of the scalar components, should be subtype of `Number`
+- `L` is the number of components (scalars) of type `T` stored internally.
+
+Let A be a differential geometry tensor, that is a multilinear map
+
+    A : (V*)`ᴿ` × V`ˢ`  -> ℝ
+
+where V is a `D`-dimentional vector space of basis {e¹, ..., e`ᴰ`}, instances of
+`AbstractDGTensorValue` store the components of A into the canonical basis
+
+    { eᵢ₁ ⊗ ... ⊗ eᵢᵣ ⊗ eʲ¹ ⊗ ... ⊗ eʲˢ |  il,im ∈ ⟦1,`D`⟧, 1 ≤ l ≤`R`, 1 ≤ m ≤ `S`},
+
+then can be accessed via indexing as in `A[i1, ..., iR, j1, ..., jS]`.
+
+Unlike intances of [`ArrayMultiValue`](@ref)s, the differential geometry tensor values
+have a fixed number of components along each axes, `D`, and axes have a variance.
+
+The concrete subtypes are [`DGTensorValue`](@ref) and [`FormValue`](@ref).
+
+The main purpose of this type is to discriminate the tensor values between the
+vector differential calculus and the differential geometry calculus with zero
+runtime cost.
+"""
+abstract type AbstractDGTensorValue{D,R,S,T,L} <: MultiValue{T,L} end
+
+CalculusStyle(::Type{<:AbstractDGTensorValue}) = DiffGeoCalculus()
+
+Base.size(::AbstractDGTensorValue{D,R,S}) where {D,R,S}  = ntuple(_->D, Val(R+S))

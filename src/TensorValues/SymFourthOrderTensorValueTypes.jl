@@ -3,13 +3,13 @@
 ###############################################################
 
 """
-    SymFourthOrderTensorValue{D,T,L} <: MultiValue{Tuple{D,D,D,D},T,4,L}
+    SymFourthOrderTensorValue{D,T,L} <: ArrayMultiValue{Tuple{D,D,D,D},T,4,L}
 
 Type representing a symmetric second-order `D`×`D`×`D`×`D` tensor, with symmetries ijkl↔jikl and ijkl↔ijlk. It must hold `L` = (`D`(`D`+1)/2)^2.
 
 It is constructed by providing the components of index (i,j,k,l) for 1 ≤ i ≤ j ≤ `D` and 1 ≤ k ≤ l ≤ `D`.
 """
-struct SymFourthOrderTensorValue{D,T,L} <: MultiValue{Tuple{D,D,D,D},T,4,L}
+struct SymFourthOrderTensorValue{D,T,L} <: ArrayMultiValue{Tuple{D,D,D,D},T,4,L}
   data::NTuple{L,T}
   function SymFourthOrderTensorValue{D,T}(data::NTuple{L,T}) where {D,T,L}
     @check L == (D*(D+1)÷2)^2

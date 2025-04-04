@@ -81,11 +81,11 @@ lazy_map(::Broadcasting{typeof(∇∇)},a::AbstractArray{<:Field}) = lazy_map(�
 
 push_∇(∇a::Field,ϕ::Field) = pinvJt(∇(ϕ))⋅∇a
 
-function pinvJt(Jt::MultiValue{Tuple{D,D}}) where D
+function pinvJt(Jt::ArrayMultiValue{Tuple{D,D}}) where D
   inv(Jt)
 end
 
-function pinvJt(Jt::MultiValue{Tuple{D1,D2}}) where {D1,D2}
+function pinvJt(Jt::ArrayMultiValue{Tuple{D1,D2}}) where {D1,D2}
   @check D1 < D2
   J = transpose(Jt)
   transpose(inv(Jt⋅J)⋅Jt)

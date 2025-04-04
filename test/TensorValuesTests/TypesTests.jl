@@ -653,7 +653,7 @@ M2 = Mutable(v)
 @test indep_components_names(SymFourthOrderTensorValue{2}) == [
  "XXXX", "XXXY", "XXYY", "XYXX", "XYXY", "XYYY", "YYXX", "YYXY", "YYYY"
 ]
-@test indep_components_names(MultiValue{Tuple{3,4},Int,2,5}) == ["1","2","3","4","5"]
+@test indep_components_names(ArrayMultiValue{Tuple{3,4},Int,2,5}) == ["1","2","3","4","5"]
 
 a = VectorValue(1,2,3,4)
 @test change_eltype(a,Float64) == VectorValue{4,Float64}

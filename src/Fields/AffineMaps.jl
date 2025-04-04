@@ -71,19 +71,19 @@ function push_∇∇(∇∇a::Field,ϕ::AffineField)
   Operation(push_∇∇)(∇∇a, Jt_inv)
 end
 
-#function push_∇∇(∇∇a::Number,Jt_inv::MultiValue{Tuple{D,D}} where D)
+#function push_∇∇(∇∇a::Number,Jt_inv::ArrayMultiValue{Tuple{D,D}} where D)
 #  #Jt_inv⋅Jt_inv⋅∇∇a
 #  Jt_inv⋅∇∇a⋅transpose(Jt_inv)
 #end
 
-function push_∇∇(∇∇a::Number,Jt_inv::MultiValue{Tuple{D1,D2}} where {D1,D2})
+function push_∇∇(∇∇a::Number,Jt_inv::ArrayMultiValue{Tuple{D1,D2}} where {D1,D2})
   _permdims_for_∇∇(Jt_inv⋅_permdims_for_∇∇(∇∇a)⋅transpose(Jt_inv))
 end
 
-function _permdims_for_∇∇(a::MultiValue{Tuple{D1,D2}}) where {D1,D2}
+function _permdims_for_∇∇(a::ArrayMultiValue{Tuple{D1,D2}}) where {D1,D2}
   a
 end
-@generated function _permdims_for_∇∇(a::MultiValue{Tuple{D1,D2,D3}}) where {D1,D2,D3}
+@generated function _permdims_for_∇∇(a::ArrayMultiValue{Tuple{D1,D2,D3}}) where {D1,D2,D3}
   ss = String[]
   for k in 1:D2
     for j in 1:D3

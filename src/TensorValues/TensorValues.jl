@@ -49,6 +49,11 @@ using LinearAlgebra
 using Random
 
 export MultiValue
+export CalculusStyle
+export VectorCalculus
+export DiffGeoCalculus
+
+export ArrayMultiValue
 export VectorValue
 export TensorValue
 export AbstractSymTensorValue
@@ -57,6 +62,10 @@ export SymTracelessTensorValue
 export QTensorValue
 export SymFourthOrderTensorValue
 export ThirdOrderTensorValue
+
+export AbstractDGTensorValue
+export FormValue
+export DGTensorValue
 
 export inner, outer, meas
 export mutable
@@ -110,6 +119,10 @@ include("SymTracelessTensorValueTypes.jl")
 include("SymFourthOrderTensorValueTypes.jl")
 
 include("ThirdOrderTensorValueTypes.jl")
+
+include("DGTensorValueTypes.jl")
+
+include("FormValueTypes.jl")
 
 include("Indexing.jl")
 

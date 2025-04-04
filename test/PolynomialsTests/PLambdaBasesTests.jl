@@ -247,7 +247,7 @@ Gbx = reinterpret(V, Gbx)
 @test all(Gbx .≈ dbx)
 
 k = 1
-function hodge_grad2curl_3D(∇u::MultiValue{Tuple{3,3},T}) where T
+function hodge_grad2curl_3D(∇u::ArrayMultiValue{Tuple{3,3},T}) where T
   @inbounds begin
     c1 = ∇u[2,3] - ∇u[3,2]
     c2 = ∇u[3,1] - ∇u[1,3]
@@ -282,13 +282,15 @@ cbx = reinterpret(V, cbx)
 @test all(cbx .≈ dbx)
 
 k = 2
-function hodge_tr_3D(v::MultiValue{Tuple{3,3},T}) where T
+function hodge_tr_3D(v::ArrayMultiValue{Tuple{3,3},T}) where T
   @inbounds v[3,1] - v[2,2] + v[1,3]
 end
 hodge_and_div(f) = Operation(hodge_tr_3D)(∇(f))
 function Arrays.evaluate!(cache,::Broadcasting{typeof(hodge_and_div)},f)
   Broadcasting(Operation(hodge_tr_3D))(Broadcasting(∇)(f))
 end
+
+r = 3
 
 b = PLambdaBasis(Val(D),T,r,k)
 bx  = evaluate(b,x)
@@ -297,23 +299,42 @@ Hbx = evaluate(Broadcasting(∇∇)(b),x)
 dbx = evaluate(Broadcasting(𝑑)(b),x)
 divbx=evaluate(Broadcasting(hodge_and_div)(b),x)
 
-#cdb = return_cache(Broadcasting(∇)(b),x)
-#@profview for _ in 1:1000 evaluate!(cdb,Broadcasting(∇)(b),x) end
-#
-#r, s, c, g = cdb
+#rr, s, c = return_cache(b,x)
 #np = length(x)
-#Polynomials._setsize!(b,np,r,c,g)
-#Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
-#@code_warntype Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
+#Polynomials._setsize!(b,np,rr,c)
+#parms = Polynomials._get_static_parameters(b)
+#Polynomials._evaluate_nd!(b,x1,rr,1,c,parms)
+#@code_warntype Polynomials._evaluate_nd!(b,x1,rr,1,c,parms)
+#@benchmark Polynomials._evaluate_nd!($b,$x1,$rr,1,$c,$parms)
 #
-#const xx = [xi for xi in vertices]
+#rr, s, c, g = return_cache(Broadcasting(∇)(b),x)
+#np = length(x)
+#Polynomials._setsize!(b,np,rr,c,g)
+#parms = Polynomials._get_static_parameters(b)
+#Polynomials._gradient_nd!(b,x1,rr,1,c,g,s,parms)
+#@code_warntype Polynomials._gradient_nd!(b,x1,rr,1,c,g,s,parms)
+#@benchmark Polynomials._gradient_nd!($b,$x1,$rr,1,$c,$g,$s,$parms)
+#VSCodeServer.@profview for _ in 1:100000 Polynomials._gradient_nd!(b,x1,rr,1,c,g,s,parms) end
+#VSCodeServer.@profview_allocs for _ in 1:100000 Polynomials._gradient_nd!(b,x1,rr,1,c,g,s,parms) end
+#
+#rr, s, c, g = return_cache(Broadcasting(𝑑)(b),x)
+#np = length(x)
+#Polynomials._setsize!(b,np,rr,c,g)
+#parms = Polynomials._get_static_parameters(b)
+#Polynomials._exterior_derivative_nd!(b,x1,rr,1,c,g,s,parms)
+#@code_warntype Polynomials._exterior_derivative_nd!(b,x1,rr,1,c,g,s,parms)
+#@benchmark Polynomials._exterior_derivative_nd!($b,$x1,$rr,1,$c,$g,$s,$parms)
+#VSCodeServer.@profview for _ in 1:10000 Polynomials._exterior_derivative_nd!(b,x1,rr,1,c,g,s,parms) end
+#VSCodeServer.@profview_allocs for _ in 1:10000 Polynomials._exterior_derivative_nd!(b,x1,rr,1,c,g,s,parms) end
+#
+#const xx = [rand(vertices) for _ in 1:100]
 #const bb = PLambdaBasis(Val(D),T,r,k)
 #const 𝑑bb = Broadcasting(𝑑)(bb)
 #const dbb = Broadcasting(hodge_and_div)(bb)
 #const c𝑑bb = return_cache(𝑑bb,xx)
 #const cdbb = return_cache(dbb,xx)
-#@btime evaluate!($c𝑑bb,$𝑑bb,$xx)
-#@btime evaluate!($cdbb,$dbb,$xx)
+#@benchmark evaluate!($c𝑑bb,$𝑑bb,$xx)
+#@benchmark evaluate!($cdbb,$dbb,$xx)
 
 dbx = reinterpret(Float64, dbx)
 @test all(divbx .≈ dbx)
@@ -400,7 +421,7 @@ Hbx = evaluate(Broadcasting(∇∇)(b),x)
 dbx = evaluate(Broadcasting(𝑑)(b),x)
 
 k = 3
-function hodge_tr_4D(∇u::MultiValue{Tuple{4,4}})
+function hodge_tr_4D(∇u::ArrayMultiValue{Tuple{4,4}})
   @inbounds -∇u[4,1] + ∇u[3,2] - ∇u[2,3] + ∇u[1,4]
 end
 hodge4D_and_div(f) = Operation(hodge_tr_4D)(∇(f))

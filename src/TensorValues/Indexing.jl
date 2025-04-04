@@ -54,8 +54,12 @@ end
   @inbounds arg.data[index]
 end
 
+@propagate_inbounds function getindex(arg::FormValue{D,k},I::Integer...) where {D,k}
+  @boundscheck @check checkbounds(arg,I) === nothing
+  _k_form_getindex(D,k,arg.data,I...)
+end
 
-function Base.checkbounds(A::MultiValue{S}, I::Integer...) where S
+function Base.checkbounds(A::MultiValue, I::Integer...)
   if CartesianIndex(I...) ∉ CartesianIndices(A)
     throw(BoundsError(A,I))
   end
@@ -71,6 +75,7 @@ data_index(::Type{<:TensorValue{D}},i,j) where D = _2d_tensor_linear_index(D,i,j
 data_index(::Type{<:AbstractSymTensorValue{D}},i,j) where D = _2d_sym_tensor_linear_index(D,i,j)
 data_index(::Type{<:ThirdOrderTensorValue{D1,D2}},i,j,k) where {D1,D2} = _3d_tensor_linear_index(D1,D2,i,j,k)
 data_index(::Type{<:SymFourthOrderTensorValue{D}},i,j,k,l) where D = _4d_sym_tensor_linear_index(D,i,j,k,l)
+data_index(::Type{<:FormValue},I) = @unreachable
 
 _symmetric_index_gaps(i::Integer) = i*(i-1)÷2
 
@@ -102,4 +107,8 @@ function _4d_sym_tensor_linear_index(D,i,j,k,l)
   element_index = _2d_sym_tensor_linear_index(D,k,l)
   index=(block_index-1)*block_length+element_index
   index
+end
+
+function _k_form_getindex(D,k,data,I...)
+  return missing #TODO
 end
