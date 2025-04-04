@@ -10,13 +10,13 @@ simplices, P`r`Λ`ᴷ`(△`ᴰ`).
 
 Reference: D. N. Arnold and A. Logg, Periodic Table of the Finite Elements, SIAM News, vol. 47 no. 9, November 2014
 """
-struct PLambdaBasis{D,T,C,L,B,LC} <: PolynomialBasis{D,VectorValue{L,T},Bernstein}
+struct PLambdaBasis{D,V,C,B} <: PolynomialBasis{D,V,Bernstein}
   r::Int
   k::Int
   scalar_bernstein_basis::B
-  Ψ::SMatrix{L,C,T,LC}
+  Ψ::SVector{C,V}
 
-  function PLambdaBasis{D}(::Type{T}, r, k, vertices=nothing) where {D,T}
+  function PLambdaBasis{D}(::Type{T}, r, k, vertices=nothing; diff_geo_calculus_style=false) where {D,T}
     @check T<:Real "T needs to be <:Real since represents the scalar type"
     @check k in 0:D "The form order k must be in 0:D"
     @check r > 0    "The polynomial order r must be positive"
@@ -25,28 +25,38 @@ struct PLambdaBasis{D,T,C,L,B,LC} <: PolynomialBasis{D,VectorValue{L,T},Bernstei
       @check eltype(vertices) <: Point{D} "Vertices should be of type Point{$D}, got $(eltype(vertices))"
     end
 
-    L = binomial(D,k) # Number of components of a basis form
-    C = binomial(r+k,k)*binomial(D+r,D-k) # Number of basis polynomials
-    LC = L*C
+    if diff_geo_calculus_style
+      @notimplemented
+    else
+      (D>3 && ( 1 < k < D-1)) && @unreachable "Vector proxy of differential form bases not available for D=$D and k=$k"
+      L = binomial(D,k) # Number of components of a basis form
+      V = VectorValue{L,T}
+      C = binomial(r+k,k)*binomial(D+r,D-k) # Number of basis polynomials
+    end
 
     b = BernsteinBasisOnSimplex{D}(T, r, vertices)
     B = typeof(b)
-    Ψ = MMatrix{L,C,T,LC}(undef)
+    Ψ = zero(MVector{C,V})
     _compute_PΛ_basis_form_coefficient!(Ψ,r,k,D,b,vertices)
 
-    new{D,T,C,L,B,LC}(r,k,b,Ψ)
+    if isone(L)
+      V = T
+      Ψ = reinterpret(T, Ψ)
+    end
+
+    new{D,V,C,B}(r,k,b,Ψ)
   end
 end
 
-function PLambdaBasis(::Val{D},::Type{T},r,k,vertices=nothing) where {D,T}
-  PLambdaBasis{D}(T,r,k,vertices)
+function PLambdaBasis(::Val{D},::Type{T},r,k,vertices=nothing; diff_geo_calculus_style=false) where {D,T}
+  PLambdaBasis{D}(T,r,k,vertices; diff_geo_calculus_style)
 end
 
 get_FEEC_poly_degree(b::PLambdaBasis) = b.r
 get_FEEC_form_degree(b::PLambdaBasis) = b.k
 get_FEEC_family(::PLambdaBasis) = :P
 
-Base.size(::PLambdaBasis{D,T,C}) where {D,T,C} = (C,)
+Base.size(::PLambdaBasis{D,V,C}) where {D,V,C} = (C,)
 get_order(b::PLambdaBasis) = get_FEEC_poly_degree(b)
 
 get_cart_to_bary_matrix(b::PLambdaBasis) = b.scalar_bernstein_basis.cart_to_bary_matrix
@@ -59,18 +69,22 @@ get_cart_to_bary_matrix(b::PLambdaBasis) = b.scalar_bernstein_basis.cart_to_bary
 
 function _compute_PΛ_basis_form_coefficient!(Ψ,r,k,D,b,vertices)
   N = D+1
-  T = eltype(Ψ)
+  V = eltype(Ψ)
+  T = eltype(V)
   α_prec = ntuple(_->-1, N)
   φ_αF = MMatrix{D,N,T}(undef)
+  Ψw = Mutable(V)(undef)
   for (_, F, dF_bubbles) in PΛ_bubble_indices(r,k,D)
     for (w, α, _, J) in dF_bubbles
       if α ≠ α_prec
         update_φ_αF!(φ_αF,b,α,F,r)
         α_prec = α
       end
+      # TODO Apply Hodge
       for (I_id,I) in enumerate(sorted_combinations(D,k))
-        Ψ[I_id,w] = @inline minor(φ_αF,I,J)
+        @inbounds Ψw[I_id] = @inline minor(φ_αF,I,J)
       end
+      @inbounds Ψ[w] = Ψw
     end
   end
 end
@@ -85,12 +99,16 @@ end
 end
 
 function _compute_PΛ_basis_form_coefficient!(Ψ,r,k,D,b,::Nothing)
-  T = eltype(Ψ)
+  V = eltype(Ψ)
+  T = eltype(V)
+  Ψw = Mutable(V)(undef)
   for (_, F, dF_bubbles) in PΛ_bubble_indices(r,k,D)
     for (w, α, _, J) in dF_bubbles
+      # TODO Apply Hodge
       for (I_id,I) in enumerate(sorted_combinations(D,k))
-        Ψ[I_id,w] = _hat_Ψ(r,α,F,I,J,T)
+        @inbounds Ψw[I_id] = _hat_Ψ(r,α,F,I,J,T)
       end
+      @inbounds Ψ[w] = Ψw
     end
   end
 end
@@ -210,7 +228,7 @@ function _get_static_parameters(b::PLambdaBasis)
 end
 
 function _evaluate_nd!(
-  b::PLambdaBasis{D,T}, x,
+  b::PLambdaBasis{D,V}, x,
   ω::AbstractMatrix{V}, i,
   c::AbstractVector{T},
   ::Tuple{Val{r},Val{k}}) where {D,V,T,r,k}
@@ -223,13 +241,15 @@ function _evaluate_nd!(
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
     for (w, _, α_id, _) in dF_bubbles
-      ω[i,w] = c[α_id] .* VectorValue(b.Ψ[:,w]) # Bα(x)*Ψ_w
+      Ψw = b.Ψ[w]
+      Bα = c[α_id]
+      @inbounds ω[i,w] = Bα * Ψw
     end
   end
 end
 
 function _gradient_nd!(
-  b::PLambdaBasis{D,T}, x,
+  b::PLambdaBasis{D}, x,
   ∇ω::AbstractMatrix{G}, i,
   c::AbstractVector{T},
   ∇B::AbstractMatrix{VectorValue{D,T}},
@@ -240,13 +260,15 @@ function _gradient_nd!(
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
     for (w, _, α_id, _) in dF_bubbles
-      @inbounds ∇ω[i,w] = ∇B[1,α_id] ⊗  VectorValue(b.Ψ[:,w])
+      Ψw = b.Ψ[w]
+      ∇Bα = ∇B[1,α_id]
+      @inbounds ∇ω[i,w] = ∇Bα ⊗ Ψw
     end
   end
 end
 
 function _hessian_nd!(
-  b::PLambdaBasis{D,T}, x,
+  b::PLambdaBasis{D}, x,
   Hω::AbstractMatrix{G}, i,
   c::AbstractVector{T},
   ::Nothing,
@@ -258,7 +280,9 @@ function _hessian_nd!(
 
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
     for (w, _, α_id, _) in dF_bubbles
-      Hω[i,w] = HB[1,α_id] ⊗  VectorValue(b.Ψ[:,w])
+      Ψw = b.Ψ[w]
+      HBα = HB[1,α_id]
+      Hω[i,w] = HBα ⊗ Ψw
     end
   end
 end
@@ -289,7 +313,7 @@ function return_cache(
 end
 
 function _exterior_derivative_nd!(
-  b::PLambdaBasis{D,T}, x,
+  b::PLambdaBasis{D}, x,
   dω::AbstractMatrix{V}, i,
   c::AbstractVector{T},
   ∇B::AbstractMatrix{VectorValue{D,T}},
@@ -301,14 +325,16 @@ function _exterior_derivative_nd!(
   dω_w = Mutable(V)(undef)
   for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
     for (w, _, α_id, _) in dF_bubbles
-      dω_w .= zero(T)
+      dω_w = zero(dω_w)
+      Ψw = b.Ψ[w]
       # Running through the next iterators at runtime is likely responsible for
       # a X2 slowdown compared to regular curl / div, this might be optimisable
       # using another generated function computing dω_w
       for (I_id, I, I_sub_combis) in sorted_and_sub_combinations(Val(D),Val(k+1))
         for (q, _, I_sub_q_id) in I_sub_combis
+          # TODO Apply Hodge
           sgn = iseven(q) ? -one(T) : one(T)
-          @inbounds dω_w[I_id] += sgn * b.Ψ[I_sub_q_id,w] * ∇B[1,α_id][I[q]]
+          @inbounds dω_w[I_id] += sgn * Ψw[I_sub_q_id] * ∇B[1,α_id][I[q]]
         end
       end
       dω[i,w] = dω_w
@@ -386,6 +412,7 @@ P⁻Λ_bubble_indices(r,k,D) = P⁻Λ_bubble_indices(Val(r),Val(k),Val(D))
   :( $(d_F_bubbles) )
 end
 
+# TODO Apply Hodge
 sorted_and_sub_combinations(::Val,::Val{0}) = Tuple{}[]
 @generated function sorted_and_sub_combinations(::Val{D},::Val{k}) where {D,k}
   @check k>0
@@ -399,48 +426,5 @@ sorted_and_sub_combinations(::Val,::Val{0}) = Tuple{}[]
     push!(res, (I_id, I, sub_combis))
   end
   :( $(res) )
-end
-
-"""
-supp(α)
-
-TBW
-"""
-function supp(α)
-  s = Int[]
-  for (i,αi) in enumerate(α)
-    if αi > 0
-      push!(s, i)
-    end
-  end
-  Tuple(s)
-end
-
-function minor(M,I,J)
-  @check length(I) == length(J)
-  @check I ⊆ axes(M)[1]
-  @check J ⊆ axes(M)[2]
-
-  k = length(I)
-  T = eltype(M)
-  m = MMatrix{k,k,T}(undef)
-  for (i, Ii) in enumerate(I)
-    for (j, Jj) in enumerate(J)
-      @inbounds m[i,j] = M[Ii,Jj]
-    end
-  end
-  det(m)
-end
-
-function all_k_minors!(m,M,::Val{k}) where {k}
-  D = size(M)[1]
-  Λᵏᴰ = sorted_combinations(Val(D),Val(k))
-  @inbounds begin
-    for (i, I) in enumerate(Λᵏᴰ)
-      for (j, J) in enumerate(Λᵏᴰ)
-        m[i,j] = @inline minor(M,I,J)
-      end
-    end
-  end
 end
 

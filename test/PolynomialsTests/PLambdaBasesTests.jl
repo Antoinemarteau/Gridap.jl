@@ -385,19 +385,19 @@ Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
 dbx = evaluate(Broadcasting(𝑑)(b),x)
 
-k = 2
-b = PLambdaBasis(Val(D),T,r,k)
-bx  = evaluate(b,x)
-Gbx = evaluate(Broadcasting(∇)(b),x)
-Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
-
-
-b = PLambdaBasis(Val(D),T,r,k,vertices)
-bx  = evaluate(b,x)
-Gbx = evaluate(Broadcasting(∇)(b),x)
-Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
+#k = 2
+#b = PLambdaBasis(Val(D),T,r,k)
+#bx  = evaluate(b,x)
+#Gbx = evaluate(Broadcasting(∇)(b),x)
+#Hbx = evaluate(Broadcasting(∇∇)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
+#
+#
+#b = PLambdaBasis(Val(D),T,r,k,vertices)
+#bx  = evaluate(b,x)
+#Gbx = evaluate(Broadcasting(∇)(b),x)
+#Hbx = evaluate(Broadcasting(∇∇)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
 
 k = 3
 function hodge_tr_4D(∇u::MultiValue{Tuple{4,4}})
