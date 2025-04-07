@@ -179,6 +179,8 @@ end
 # nD evaluations implementation #
 #################################
 
+_get_static_parameters(::ModalC0Basis) = ()
+
 function _evaluate_nd!(
   basis::ModalC0Basis{D,V,T}, x,
   r::AbstractMatrix{V}, i,

@@ -138,6 +138,14 @@ function _setsize!(f::PolynomialBasis{D}, np, r, t...) where D
   end
 end
 
+"""
+    _get_static_parameters(::PolynomialBasis)
+
+Return a tuple static of parameters appended to low level `[...]_nd!` evaluation
+calls, default is `( Val(get_order(b)), )`.
+"""
+_get_static_parameters(b::PolynomialBasis) = ( Val(get_order(b)), )
+
 function evaluate!(cache,
   f::PolynomialBasis,
   x::AbstractVector{<:Point})
@@ -145,9 +153,10 @@ function evaluate!(cache,
   r, _, c = cache
   np = length(x)
   _setsize!(f,np,r,c)
+  params = _get_static_parameters(f)
   for i in 1:np
     @inbounds xi = x[i]
-    _evaluate_nd!(f,xi,r,i,c)
+    _evaluate_nd!(f,xi,r,i,c,params...)
   end
   r.array
 end
@@ -160,9 +169,10 @@ function evaluate!(cache,
   r, s, c, g = cache
   np = length(x)
   _setsize!(f,np,r,c,g)
+  params = _get_static_parameters(f)
   for i in 1:np
     @inbounds xi = x[i]
-    _gradient_nd!(f,xi,r,i,c,g,s)
+    _gradient_nd!(f,xi,r,i,c,g,s,params...)
   end
   r.array
 end
@@ -175,9 +185,10 @@ function evaluate!(cache,
   r, s, c, g, h = cache
   np = length(x)
   _setsize!(f,np,r,c,g,h)
+  params = _get_static_parameters(f)
   for i in 1:np
     @inbounds xi = x[i]
-    _hessian_nd!(f,xi,r,i,c,g,h,s)
+    _hessian_nd!(f,xi,r,i,c,g,h,s,params...)
   end
   r.array
 end
@@ -235,7 +246,7 @@ end
 ###############################
 
 """
-    _evaluate_nd!(b,xi,r,i,c)
+    _evaluate_nd!(b,xi,r,i,c,params...)
 
 Compute and assign: `r`[`i`] = `b`(`xi`) = (`b`₁(`xi`), ..., `b`ₙ(`xi`))
 
@@ -244,13 +255,14 @@ the basis polynomials at a single point `xi` and sets the result in the `i`th
 row of `r`.
 
 - `c` is an implementation specific cache for temporary computation of `b`(`xi`).
+- `params` are optional parameters returned by [`_get_static_parameters(b)`](@ref _get_static_parameters)
 """
-function _evaluate_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c)
+function _evaluate_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, params)
   @abstractmethod
 end
 
 """
-    _gradient_nd!(b,xi,r,i,c,g,s)
+    _gradient_nd!(b,xi,r,i,c,g,s,params...)
 
 Compute and assign: `r`[`i`] = ∇`b`(`xi`) = (∇`b`₁(`xi`), ..., ∇`b`ₙ(`xi`))
 
@@ -260,12 +272,12 @@ for gradients of `b`ₖ(`xi`), and
 - `g` is an implementation specific cache for temporary computation of `∇b`(`xi`).
 - `s` is a mutable length `D` cache for ∇`b`ₖ(`xi`).
 """
-function _gradient_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, s::MVector)
+function _gradient_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, s::MVector,params)
   @abstractmethod
 end
 
 """
-    _hessian_nd!(b,xi,r,i,c,g,h,s)
+    _hessian_nd!(b,xi,r,i,c,g,h,s,params...)
 
 Compute and assign: `r`[`i`] = H`b`(`xi`) = (H`b`₁(`xi`), ..., H`b`ₙ(`xi`))
 
@@ -275,7 +287,7 @@ for hessian matrices/tensor of `b`ₖ(`xi`), and
 - `h` is an implementation specific cache for temporary computation of `∇∇b`(`xi`).
 - `s` is a mutable `D`×`D` cache for H`b`ₖ(`xi`).
 """
-function _hessian_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, h, s::MMatrix)
+function _hessian_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, h, s::MMatrix,params)
   @abstractmethod
 end
 

@@ -66,26 +66,19 @@ end
 function _evaluate_nd!(
   b::CompWiseTensorPolyBasis{D,V,PT,L}, x,
   r::AbstractMatrix{V}, i,
-  c::AbstractMatrix{T}) where {D,V,PT,L,T}
+  c::AbstractMatrix{T}, VK::Val) where {D,V,PT,L,T}
 
-  K = get_order(b)
-  #orders = b.orders
-  comp_terms = get_comp_terms(b)
-
-  Kd = Val(K)
   for d in 1:D
     # The optimization below of fine tuning Kd is a bottlneck if not put in a
     # function due to runtime dispatch and creation of Val(Kd)
     #  # for each coordinate d, the order at which the basis should be evaluated is
     #  # the maximum d-order for any component l
-    #  Kd = Val(maximum(orders[:,d]))
-    _evaluate_1d!(PT,Kd,c,x,d)
+    #  Kd = Val(maximum(b.orders[:,d]))
+    _evaluate_1d!(PT,VK,c,x,d)
   end
 
-  m = zero(Mutable(V))
   k = 1
-
-  for (l,terms) in enumerate(comp_terms)
+  for (l,terms) in enumerate(get_comp_terms(b))
     for ci in terms
 
       s = one(T)
@@ -119,20 +112,14 @@ function _gradient_nd!(
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
-  s::MVector{D,T}) where {D,V,PT,L,G,T}
+  s::MVector{D,T}, VK::Val) where {D,V,PT,L,G,T}
 
-  K = get_order(b)
-  #orders = b.orders
-  comp_terms = get_comp_terms(b)
-
-  Kd = Val(K)
   for d in 1:D
-    _derivatives_1d!(PT,Kd,(c,g),x,d)
+    _derivatives_1d!(PT,VK,(c,g),x,d)
   end
 
   k = 1
-
-  for (l,terms) in enumerate(comp_terms)
+  for (l,terms) in enumerate(get_comp_terms(b))
     for ci in terms
 
       for i in eachindex(s)
@@ -198,20 +185,14 @@ function _hessian_nd!(
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
   h::AbstractMatrix{T},
-  s::MMatrix{D,D,T}) where {D,V,PT,L,H,T}
+  s::MMatrix{D,D,T}, VK::Val) where {D,V,PT,L,H,T}
 
-  K = get_order(b)
-  #orders = b.orders
-  comp_terms = get_comp_terms(b)
-
-  Kd = Val(K)
   for d in 1:D
-    _derivatives_1d!(PT,Kd,(c,g,h),x,d)
+    _derivatives_1d!(PT,VK,(c,g,h),x,d)
   end
 
   k = 1
-
-  for (l,terms) in enumerate(comp_terms)
+  for (l,terms) in enumerate(get_comp_terms(b))
     for ci in terms
 
       for i in eachindex(s)
