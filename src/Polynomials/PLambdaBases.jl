@@ -302,10 +302,10 @@ end
 function _hessian_nd!(
   b::PLambdaBasis{D}, x,
   Hω::AbstractMatrix{G}, i,
-   c::AbstractVector{T},
-    ::Nothing,
+  c::AbstractVector{T},
+  ::Nothing,
   HB::AbstractMatrix{<:TensorValue{D,D,T}},
-   s::MMatrix{D,D,T},
+  s::MMatrix{D,D,T},
   ::Tuple{Val{r},Val{k}}) where {D,G,T,r,k}
 
   _hessian_nd!(b.scalar_bernstein_basis, x, HB, 1, c, nothing, nothing, s, Val(r))
@@ -315,6 +315,49 @@ function _hessian_nd!(
       Ψw = b.Ψ[w]
       HBα = HB[1,α_id]
       Hω[i,w] = HBα ⊗ Ψw
+    end
+  end
+end
+
+function return_cache(
+  fd::FieldExteriorDerivArray{<:PLambdaBasis{D,V}},
+  x::AbstractVector{<:Point}) where {D,V}
+
+  b = fd.fa
+  k = get_FEEC_form_degree(b)
+  T = eltype(V)
+  dV = exterior_derivative_type(D,k,T)
+  return _return_cache(b,x,dV,Val(1))
+end
+
+function _exterior_derivative_nd!(
+  b::PLambdaBasis{D}, x,
+  dω::AbstractMatrix{V}, i,
+  c::AbstractVector{T},
+  ∇B::AbstractMatrix{VectorValue{D,T}},
+  s::MVector{D,T},
+  ::Tuple{Val{r},Val{k}}) where {D,V,T,r,k}
+
+  _gradient_nd!(b.scalar_bernstein_basis, x, ∇B, 1, c, nothing, s, Val(r))
+
+  dω_w = Mutable(V)(undef)
+  for (_, _, dF_bubbles) in PΛ_bubble_indices(Val(r),Val(k),Val(D))
+    for (w, _, α_id, _) in dF_bubbles
+      # Running through the next iterators at runtime is likely responsible for
+      # a X2 slowdown compared to regular curl / div, this might be optimisable
+      # using another generated function computing dω_w
+      dω_w .= zero(T)
+      Ψw = b.Ψ[w]
+      ∇Bα = ∇B[1,α_id]
+      for (I_id, I, I_sub_combis) in sorted_and_sub_combinations(Val(D),Val(k+1))
+        for (q, _, I_sub_q_id) in I_sub_combis
+          # TODO fix: prevent calling 𝑑 on T/VectorValue{L,T} PLambdaBasis,
+          # it chashes for T valued b, or T valued 𝑑b
+          sgn = iseven(q) ? -one(T) : one(T)
+          dω_w[I_id] += sgn * Ψw[I_sub_q_id] * ∇Bα[I[q]]
+        end
+      end
+      dω[i,w] = dω_w
     end
   end
 end
@@ -389,7 +432,6 @@ P⁻Λ_bubble_indices(r,k,D) = P⁻Λ_bubble_indices(Val(r),Val(k),Val(D))
   :( $(d_F_bubbles) )
 end
 
-# TODO Apply Hodge
 sorted_and_sub_combinations(::Val,::Val{0}) = Tuple{}[]
 @generated function sorted_and_sub_combinations(::Val{D},::Val{k}) where {D,k}
   @check k>0
