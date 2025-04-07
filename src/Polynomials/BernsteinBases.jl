@@ -326,13 +326,12 @@ sorted in decreasing lexicographic order, e.g.
     {300, 210, 201, 120, 111, 102, 030, 021, 012, 003}
 for D=2, K=3.
 """
+bernstein_terms(K,D) = bernstein_terms(Val(K),Val(D))
 @generated function bernstein_terms(::Val{K},::Val{D}) where {K,D}
   multi_exponents = collect( tuple(v...) for v in multiexponents(D+1,K))
   terms = tuple(multi_exponents...)
   :( return $terms )
 end
-
-bernstein_terms(K,D) = bernstein_terms(Val(K),Val(D))
 
 
 ################################

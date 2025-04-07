@@ -143,8 +143,8 @@ function _evaluate_nd!(
   for d in 1:D
     # The optimization below of fine tuning Kd for `orders` is a bottlneck if
     # `orders` are not passed in `Val`s, due to runtime dispatch depending on
-    # none inferable Val(orders[d])
-    # Kd = Val(orders[d])
+    # none inferable Val(b.orders[d])
+    # Kd = Val(b.orders[d])
     _evaluate_1d!(PT,VK,c,x,d)
   end
 

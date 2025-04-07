@@ -193,7 +193,6 @@ function evaluate!(cache,
   r.array
 end
 
-
 function return_cache(
   fd::FieldExteriorDerivArray{<:PolynomialBasis{D,V}},
   x::AbstractVector{<:Point}) where {D,V}
@@ -297,9 +296,7 @@ for gradients of `b`ₖ(`xi`), and
 - `s` is a mutable length `D` cache for ∇`b`ₖ(`xi`).
 - `params` is an optional (tuple of) parameter(s) returned by [`_get_static_parameters(b)`](@ref _get_static_parameters)
 """
-function _gradient_nd!(
-  b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, s::MVector, params)
-
+function _gradient_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, s::MVector, params)
   @abstractmethod
 end
 
@@ -314,9 +311,7 @@ for hessian matrices/tensor of `b`ₖ(`xi`), and
 - `h` is an implementation specific cache for temporary computation of `∇∇b`(`xi`).
 - `s` is a mutable `D`×`D` cache for H`b`ₖ(`xi`).
 """
-function _hessian_nd!(
-  b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, h, s::MMatrix, params)
-
+function _hessian_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, h, s::MMatrix, params)
   @abstractmethod
 end
 
@@ -330,9 +325,7 @@ where n = length(`b`) (cardinal of the basis)
 - `d` is an implementation specific cache for temporary computation of 𝑑`b`(`xi`).
 - `s` is a mutable length `D` cache for 𝑑`b`ₖ(`xi`).
 """
-function _exterior_derivative_nd!(
-  b::PolynomialBasis, xi, r::AbstractMatrix, i, c, d, s::MVector, params)
-
+function _exterior_derivative_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, d, s::MVector, params)
   @abstractmethod
 end
 

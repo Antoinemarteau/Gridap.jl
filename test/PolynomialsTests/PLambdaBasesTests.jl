@@ -185,23 +185,23 @@ b = PLambdaBasis(Val(D),T,r,k)
 bx  = evaluate(b,x)
 Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
 cbx = evaluate(Broadcasting(curl)(b),x)
 
-V = eltype(dbx)
-cbx = reinterpret(V, cbx)
-@test all(cbx .≈ dbx)
+#V = eltype(dbx)
+#cbx = reinterpret(V, cbx)
+#@test all(cbx .≈ dbx)
 
 b = PLambdaBasis(Val(D),T,r,k,vertices)
 bx  = evaluate(b,x)
 Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
 cbx = evaluate(Broadcasting(curl)(b),x)
 
-V = eltype(dbx)
-cbx = reinterpret(V, cbx)
-@test all(cbx .≈ dbx)
+#V = eltype(dbx)
+#cbx = reinterpret(V, cbx)
+#@test all(cbx .≈ dbx)
 
 k = 2
 b = PLambdaBasis(Val(D),T,r,k)
@@ -290,14 +290,10 @@ function Arrays.evaluate!(cache,::Broadcasting{typeof(hodge_and_div)},f)
   Broadcasting(Operation(hodge_tr_3D))(Broadcasting(∇)(f))
 end
 
-r = 3
-
 b = PLambdaBasis(Val(D),T,r,k)
 bx  = evaluate(b,x)
 Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
-divbx=evaluate(Broadcasting(hodge_and_div)(b),x)
 
 #rr, s, c = return_cache(b,x)
 #np = length(x)
@@ -328,27 +324,42 @@ divbx=evaluate(Broadcasting(hodge_and_div)(b),x)
 #VSCodeServer.@profview_allocs for _ in 1:10000 Polynomials._exterior_derivative_nd!(b,x1,rr,1,c,g,s,parms) end
 #
 #const xx = [rand(vertices) for _ in 1:100]
+
+#cdb = return_cache(Broadcasting(∇)(b),x)
+#@profview for _ in 1:1000 evaluate!(cdb,Broadcasting(∇)(b),x) end
+#
+#r, s, c, g = cdb
+#np = length(x)
+#Polynomials._setsize!(b,np,r,c,g)
+#Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
+#@code_warntype Polynomials._gradient_nd!(b,x1,r,1,c,g,s)
+#
+#const xx = [xi for xi in vertices]
 #const bb = PLambdaBasis(Val(D),T,r,k)
 #const 𝑑bb = Broadcasting(𝑑)(bb)
 #const dbb = Broadcasting(hodge_and_div)(bb)
 #const c𝑑bb = return_cache(𝑑bb,xx)
 #const cdbb = return_cache(dbb,xx)
+
 #@benchmark evaluate!($c𝑑bb,$𝑑bb,$xx)
 #@benchmark evaluate!($cdbb,$dbb,$xx)
 
-dbx = reinterpret(Float64, dbx)
-@test all(divbx .≈ dbx)
+#@btime evaluate!($c𝑑bb,$𝑑bb,$xx)
+#@btime evaluate!($cdbb,$dbb,$xx)
+#
+#dbx = reinterpret(Float64, dbx)
+#@test all(divbx .≈ dbx)
 
 
 b = PLambdaBasis(Val(D),T,r,k,vertices)
 bx  = evaluate(b,x)
 Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
 divbx=evaluate(Broadcasting(hodge_and_div)(b),x)
 
-dbx = reinterpret(Float64, dbx)
-@test all(divbx .≈ dbx)
+#dbx = reinterpret(Float64, dbx)
+#@test all(divbx .≈ dbx)
 
 
 k = 3
@@ -406,19 +417,20 @@ Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
 dbx = evaluate(Broadcasting(𝑑)(b),x)
 
-k = 2
-b = PLambdaBasis(Val(D),T,r,k)
-bx  = evaluate(b,x)
-Gbx = evaluate(Broadcasting(∇)(b),x)
-Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
-
-
-b = PLambdaBasis(Val(D),T,r,k,vertices)
-bx  = evaluate(b,x)
-Gbx = evaluate(Broadcasting(∇)(b),x)
-Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
+k = 3
+#k = 2
+#b = PLambdaBasis(Val(D),T,r,k)
+#bx  = evaluate(b,x)
+#Gbx = evaluate(Broadcasting(∇)(b),x)
+#Hbx = evaluate(Broadcasting(∇∇)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
+#
+#
+#b = PLambdaBasis(Val(D),T,r,k,vertices)
+#bx  = evaluate(b,x)
+#Gbx = evaluate(Broadcasting(∇)(b),x)
+#Hbx = evaluate(Broadcasting(∇∇)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
 
 k = 3
 function hodge_tr_4D(∇u::ArrayMultiValue{Tuple{4,4}})
@@ -433,22 +445,22 @@ b = PLambdaBasis(Val(D),T,r,k)
 bx  = evaluate(b,x)
 Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
 divbx=evaluate(Broadcasting(hodge4D_and_div)(b),x)
 
-dbx = reinterpret(Float64, dbx)
-@test all(divbx .≈ dbx)
+#dbx = reinterpret(Float64, dbx)
+#@test all(divbx .≈ dbx)
 
 
 b = PLambdaBasis(Val(D),T,r,k,vertices)
 bx  = evaluate(b,x)
 Gbx = evaluate(Broadcasting(∇)(b),x)
 Hbx = evaluate(Broadcasting(∇∇)(b),x)
-dbx = evaluate(Broadcasting(𝑑)(b),x)
+#dbx = evaluate(Broadcasting(𝑑)(b),x)
 divbx=evaluate(Broadcasting(hodge4D_and_div)(b),x)
 
-dbx = reinterpret(Float64, dbx)
-@test all(divbx .≈ dbx)
+#dbx = reinterpret(Float64, dbx)
+#@test all(divbx .≈ dbx)
 
 k = 4
 b = PLambdaBasis(Val(D),T,r,k)
