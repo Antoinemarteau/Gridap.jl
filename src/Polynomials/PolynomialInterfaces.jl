@@ -141,10 +141,10 @@ end
 """
     _get_static_parameters(::PolynomialBasis)
 
-Return a tuple static of parameters appended to low level `[...]_nd!` evaluation
-calls, default is `( Val(get_order(b)), )`.
+Return a (tuple of) static parameter(s) appended to low level `[...]_nd!` evaluation
+calls, default is `Val(get_order(b))`.
 """
-_get_static_parameters(b::PolynomialBasis) = ( Val(get_order(b)), )
+_get_static_parameters(b::PolynomialBasis) = Val(get_order(b))
 
 function evaluate!(cache,
   f::PolynomialBasis,
@@ -156,7 +156,7 @@ function evaluate!(cache,
   params = _get_static_parameters(f)
   for i in 1:np
     @inbounds xi = x[i]
-    _evaluate_nd!(f,xi,r,i,c,params...)
+    _evaluate_nd!(f,xi,r,i,c,params)
   end
   r.array
 end
@@ -172,7 +172,7 @@ function evaluate!(cache,
   params = _get_static_parameters(f)
   for i in 1:np
     @inbounds xi = x[i]
-    _gradient_nd!(f,xi,r,i,c,g,s,params...)
+    _gradient_nd!(f,xi,r,i,c,g,s,params)
   end
   r.array
 end
@@ -188,7 +188,7 @@ function evaluate!(cache,
   params = _get_static_parameters(f)
   for i in 1:np
     @inbounds xi = x[i]
-    _hessian_nd!(f,xi,r,i,c,g,h,s,params...)
+    _hessian_nd!(f,xi,r,i,c,g,h,s,params)
   end
   r.array
 end
@@ -246,7 +246,7 @@ end
 ###############################
 
 """
-    _evaluate_nd!(b,xi,r,i,c,params...)
+    _evaluate_nd!(b,xi,r,i,c,params)
 
 Compute and assign: `r`[`i`] = `b`(`xi`) = (`b`₁(`xi`), ..., `b`ₙ(`xi`))
 
@@ -262,7 +262,7 @@ function _evaluate_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, params)
 end
 
 """
-    _gradient_nd!(b,xi,r,i,c,g,s,params...)
+    _gradient_nd!(b,xi,r,i,c,g,s,params)
 
 Compute and assign: `r`[`i`] = ∇`b`(`xi`) = (∇`b`₁(`xi`), ..., ∇`b`ₙ(`xi`))
 
@@ -277,7 +277,7 @@ function _gradient_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, s::MV
 end
 
 """
-    _hessian_nd!(b,xi,r,i,c,g,h,s,params...)
+    _hessian_nd!(b,xi,r,i,c,g,h,s,params)
 
 Compute and assign: `r`[`i`] = H`b`(`xi`) = (H`b`₁(`xi`), ..., H`b`ₙ(`xi`))
 
