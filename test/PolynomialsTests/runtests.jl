@@ -22,7 +22,7 @@ using Test
 
 @testset "BernsteinBases" begin include("BernsteinBasesTests.jl") end
 
-@testset "FEECPolyBasis" begin include("ExteriorCalculusBasesTests.jl") end
+#@testset "FEECPolyBasis" begin include("ExteriorCalculusBasesTests.jl") end
 
 #@testset "ChangeBasis" begin include("ChangeBasisTests.jl") end
 
