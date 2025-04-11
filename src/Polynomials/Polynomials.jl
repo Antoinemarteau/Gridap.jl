@@ -159,6 +159,8 @@ include("BernsteinBases.jl")
 
 include("ModalC0Bases.jl")
 
+include("Combinations.jl")
+
 include("PLambdaBases.jl")
 
 include("Deprecated.jl")
