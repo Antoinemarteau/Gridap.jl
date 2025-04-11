@@ -118,6 +118,7 @@ export BernsteinBasis
 export BernsteinBasisOnSimplex
 export FEECPolyBasis
 export PLambdaBasis
+export PmLambdaBasis
 
 export CompWiseTensorPolyBasis
 export QGradBasis
