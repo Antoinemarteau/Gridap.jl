@@ -117,8 +117,13 @@ export ChebyshevBasis
 export BernsteinBasis
 export BernsteinBasisOnSimplex
 export FEECPolyBasis
-export PLambdaBasis
+
 export PmLambdaBasis
+export PmΛ_bubbles
+export PLambdaBasis
+export PΛ_bubbles
+export get_bubbles
+export print_indices
 
 export CompWiseTensorPolyBasis
 export QGradBasis
