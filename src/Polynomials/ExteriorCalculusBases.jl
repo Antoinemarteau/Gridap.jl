@@ -3,17 +3,21 @@
 #################################
 
 """
-    struct FEECPolyBasis{r,k,F,D,...} <: PolynomialBasis
+    struct FEECPolyBasis{D,V,B,PT} <: PolynomialBasis{D,V,PT}
 
-where `F` is in  {:P⁻,:P,:Q⁻,:S} and represents the FE family in Arnold et. al. nomenclature.
 
-Finite Element Exterior Calculus polynomial basis for the spaces `Fr`Λ`ᴷ`
-in dimension `D`, that is P⁻`r`Λ`ᴷ`(△`ᴰ`), P`r`Λ`ᴷ`(△`ᴰ`), Q⁻`r`Λ`ᴷ`(□`ᴰ`) or S`r`Λ`ᴷ`(□`ᴰ`).
+Finite Element Exterior Calculus polynomial basis for the spaces F`ᵣ`Λ`ᴷ` where
+`F` is in  {:P⁻,:P,:Q⁻,:S} and represents the FE family in Arnold et. al.
+nomenclature, that is P⁻`r`Λ`ᴷ`(△`ᴰ`), P`r`Λ`ᴷ`(△`ᴰ`), Q⁻`r`Λ`ᴷ`(□`ᴰ`) or
+S`r`Λ`ᴷ`(□`ᴰ`).
 
 Reference: D. N. Arnold and A. Logg, Periodic Table of the Finite Elements, SIAM News, vol. 47 no. 9, November 2014
 """
-struct FEECPolyBasis{r,k,F,B} <: AbstractVector{Polynomial}
-  _basis::B # <: PolynomialBasis{D,V,K,PT}
+struct FEECPolyBasis{D,V,B,PT} <: PolynomialBasis{D,V,PT}
+  r::Int
+  k::Int
+  F::Symbol
+  _basis::B # <: PolynomialBasis{D,V,K,PT}, doing the implementation
 
   function FEECPolyBasis{D}(::Type{T},r,k,F::Symbol,::Type{PT}) where {D,PT<:Polynomial,T}
     @check T<:Real "T needs to be <:Real since represents the scalar type"
@@ -21,24 +25,11 @@ struct FEECPolyBasis{r,k,F,B} <: AbstractVector{Polynomial}
     @check r > 0    "The polynomial order r must be positive"
 
     b = _select_FEEC_basis(r,k,F,Val(D),T,PT)
-    new{r,k,F,typeof(b)}(b)
+    V = return_type(b)
+    B = typeof(b)
+    new{D,V,B,PT}(r,k,F,b)
   end
 end
-
-#struct FEECPolyBasis{r,k,F,D,V,K,PT,B} <: PolynomialBasis{D,V,K,PT}
-#  _basis::B # <: PolynomialBasis{D,V,K,PT}
-#
-#  function FEECPolyBasis{D}(::Type{T},r,k,F::Symbol,::Type{PT}) where {D,PT<:Polynomial,T}
-#    @check T<:Real "T needs to be <:Real since represents the scalar type"
-#    @check k in 0:D "The form order k must be in 0:D"
-#    @check r > 0    "The polynomial order r must be positive"
-#
-#    b = _select_FEEC_basis(r,k,F,Val(D),T,PT)
-#    V = return_type(b)
-#    K = get_order(b)
-#    new{r,k,F,D,V,K,PT,typeof(b)}(b)
-#  end
-#end
 
 function FEECPolyBasis(::Val{D},::Type{T},r,k,F::Symbol,pt::Type{PT}=Monomial) where {D,T,PT<:Polynomial}
   FEECPolyBasis{D}(T,r,k,F,pt)
@@ -47,19 +38,22 @@ end
 Base.size(b::FEECPolyBasis) = size(b._basis)
 Base.getindex(b::FEECPolyBasis, i::Integer) = getindex(b._basis, i)
 Base.IndexStyle(::FEECPolyBasis) = IndexLinear()
-get_dimension(::FEECPolyBasis{r,k,F,<:PolynomialBasis{D}}) where {r,k,F,D} = D
+#get_dimension(::FEECPolyBasis{D}) where {r,k,F,D} = D
 get_order(b::FEECPolyBasis) = get_order(b._basis)
 return_type(b::FEECPolyBasis) = return_type(b._basis)
 
-get_FEEC_poly_degree(::FEECPolyBasis{r}) where r = r
-get_FEEC_form_degree(::FEECPolyBasis{r,k}) where {r,k} = k
-get_FEEC_family(::FEECPolyBasis{r,k,F}) where {r,k,F} = F
+get_FEEC_poly_degree(b::FEECPolyBasis) = b.r
+get_FEEC_form_degree(b::FEECPolyBasis) = b.k
+get_FEEC_family(b::FEECPolyBasis) = b.F
 
 
 # Implementation
 
 function _select_FEEC_basis(r,k,F,::Val{D},::Type{T},::Type{PT}) where {D,T,PT}
   @check F in (:P⁻,:P,:Q⁻,:S) "F must be either :P⁻,:P,:Q⁻ or :S"
+
+  F == :P  && PT == Bernstein && return PLambdaBasis( Val(D),T,r,k)
+  F == :P⁻ && PT == Bernstein && return PmLambdaBasis(Val(D),T,r,k)
 
   if k == 0
     # Scalar function

@@ -19,8 +19,11 @@ T = Float64   # scalar type
 r = 3         # Polynomial order
 
 no_hessian = true
-@inline function _test_bases(b::FEECPolyBasis{r,k,F}, b2, no_hessian=false) where {r,k,F}
-  D = get_dimension(b)
+@inline function _test_bases(b::FEECPolyBasis, b2, no_hessian=false)
+  #D = get_dimension(b)
+  r = get_FEEC_poly_degree(b)
+  k = get_FEEC_form_degree(b)
+  F = get_FEEC_family(b)
   @test length(b) == FEEC_length(r,k,D,Val(F))
   @test b._basis isa typeof(b2)
   @test evaluate(b,x) == evaluate(b2,x)
@@ -101,17 +104,17 @@ k = 1
 V = VectorValue{D,T}
 b = FEECPolyBasis(Val(D),T,r,k,:P⁻)
 b2 = PCurlGradBasis(Monomial,Val(D),T,r-1)
-@test b._basis isa PolynomialBasis{D,V,r,Monomial}
+@test b._basis isa PolynomialBasis{D,V,Monomial}
 _test_bases(b,b2,no_hessian)
 
 b = FEECPolyBasis(Val(D),T,r,k,:P)
 b2 = CartProdPolyBasis(Monomial,Val(D),V,r,_p_filter)
-@test b._basis isa PolynomialBasis{D,V,r,Monomial}
+@test b._basis isa PolynomialBasis{D,V,Monomial}
 _test_bases(b,b2)
 
 b = FEECPolyBasis(Val(D),T,r,k,:Q⁻)
 b2 = QCurlGradBasis(Monomial,Val(D),T,r-1)
-@test b._basis isa PolynomialBasis{D,V,r,Monomial}
+@test b._basis isa PolynomialBasis{D,V,Monomial}
 _test_bases(b,b2)
 
 @test_throws ErrorException FEECPolyBasis(Val(D),T,r,k,:S)
@@ -167,7 +170,7 @@ k = 1
 V = VectorValue{D,T}
 b = FEECPolyBasis(Val(D),T,r,k,:P⁻)
 b2 = PGradBasis(Monomial,Val(D),T,r-1)
-@test b._basis isa PolynomialBasis{D,V,r,Monomial}
+@test b._basis isa PolynomialBasis{D,V,Monomial}
 _test_bases(b,b2,no_hessian)
 
 @test_throws ErrorException FEECPolyBasis(Val(D),T,r,k,:P)
@@ -178,7 +181,7 @@ _test_bases(b,b2,no_hessian)
 
 b = FEECPolyBasis(Val(D),T,r,k,:Q⁻)
 b2 = QGradBasis(Monomial,Val(D),T,r-1)
-@test b._basis isa PolynomialBasis{D,V,r,Monomial}
+@test b._basis isa PolynomialBasis{D,V,Monomial}
 _test_bases(b,b2)
 
 @test_throws ErrorException FEECPolyBasis(Val(D),T,r,k,:S)
@@ -192,7 +195,7 @@ k = 2
 V = VectorValue{D,T}
 b = FEECPolyBasis(Val(D),T,r,k,:P⁻)
 b2 = PCurlGradBasis(Monomial,Val(D),T,r-1)
-@test b._basis isa PolynomialBasis{D,V,r,Monomial}
+@test b._basis isa PolynomialBasis{D,V,Monomial}
 _test_bases(b,b2,no_hessian)
 
 @test_throws ErrorException FEECPolyBasis(Val(D),T,r,k,:P)
@@ -203,7 +206,7 @@ _test_bases(b,b2,no_hessian)
 
 b = FEECPolyBasis(Val(D),T,r,k,:Q⁻)
 b2 = QCurlGradBasis(Monomial,Val(D),T,r-1)
-@test b._basis isa PolynomialBasis{D,V,r,Monomial}
+@test b._basis isa PolynomialBasis{D,V,Monomial}
 _test_bases(b,b2)
 
 @test_throws ErrorException FEECPolyBasis(Val(D),T,r,k,:S)
