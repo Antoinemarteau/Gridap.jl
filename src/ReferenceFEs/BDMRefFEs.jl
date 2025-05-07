@@ -13,11 +13,15 @@ is in the P space of degree `order-1`.
 """
 function BDMRefFE(::Type{T},p::Polytope,order::Integer) where T
   D = num_dims(p)
+  @check order ≥ 1 "BDM elements are define for order ≥ 1"
 
   if is_simplex(p)
-    prebasis = MonomialBasis(Val(D),VectorValue{D,T},order,Polynomials._p_filter)
-    fb = MonomialBasis(Val(D-1),T,order,Polynomials._p_filter)
-    cb = PGradBasis(Monomial,Val(D),T,order-2)
+    #prebasis = MonomialBasis(Val(D),VectorValue{D,T},order,Polynomials._p_filter)
+    prebasis = PLambdaBasis(Val(D),T,order,D-1) # Prebasis
+    #fb = MonomialBasis(Val(D-1),T,order,Polynomials._p_filter)
+    fb = order≥0 ? PmLambdaBasis(Val(D-1),T,order,0) : nothing       # Face basis
+    #cb = PGradBasis(Monomial,Val(D),T,order-2)
+    cb = order>1 ? PmLambdaBasis(Val(D),T,order-1,D-1) : nothing       # Cell basis
   else
     @notimplemented "BDM Reference FE only available for simplices"
   end
