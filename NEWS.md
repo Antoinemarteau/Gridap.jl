@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Indexing in `MultiValue`s now performs bound checks, that can be disabled using `@inbounds` or Gridap's performance execution mode.
     - Make sure that the result of all operation (empty/zero tensor) of correctly promoted (element) type when applied to tensor(s) of length zero
     - An argument error is now thrown when calling `tr(::ThirdOrderTensorValue{A,B})` with `A!=B`
+- Added `BernsteinBasisOnSimplex` that implements Bernstein polynomials in barycentric coordinates, since PR[#1104](https://github.com/gridap/Gridap.jl/pull/#1104).
 
 ## [0.18.10] - 2025-03-04
 
