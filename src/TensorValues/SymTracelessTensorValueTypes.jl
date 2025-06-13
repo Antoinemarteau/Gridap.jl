@@ -181,6 +181,7 @@ num_components(::Type{<:SymTracelessTensorValue{D}}) where {D} = length(SymTrace
 num_components(::SymTracelessTensorValue{D}) where {D} = num_components(SymTracelessTensorValue{D})
 
 num_indep_components(::Type{<:SymTracelessTensorValue})  = num_components(SymTracelessTensorValue)
-num_indep_components(::Type{SymTracelessTensorValue{0}}) = 0
+num_indep_components(::Type{<:SymTracelessTensorValue{0}}) = 0
 num_indep_components(::Type{<:SymTracelessTensorValue{D}}) where {D} = D*(D+1)÷2-1
 num_indep_components(::SymTracelessTensorValue{D}) where {D} = num_indep_components(SymTracelessTensorValue{D})
+

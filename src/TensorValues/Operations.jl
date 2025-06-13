@@ -178,15 +178,16 @@ function (/)(a::SymTracelessTensorValue,b::Number)
   M(r)
 end
 
+const AbstractTracelessTensor = Union{SymTracelessTensorValue, SkewSymTensorValue}
 const _err =  " with number is undefined for traceless tensors"
-function +(::SymTracelessTensorValue,::Number)     error("Addition"   *_err) end
-function -(::SymTracelessTensorValue,::Number)     error("Subtraction"*_err) end
-function +(::Number,::SymTracelessTensorValue)     error("Addition"   *_err) end
-function -(::Number,::SymTracelessTensorValue)     error("Subtraction"*_err) end
-function +(::SymTracelessTensorValue,::MultiValue) error("Addition"   *_err) end
-function -(::SymTracelessTensorValue,::MultiValue) error("Subtraction"*_err) end
-function +(::MultiValue,::SymTracelessTensorValue) error("Addition"   *_err) end
-function -(::MultiValue,::SymTracelessTensorValue) error("Subtraction"*_err) end
+function +(::AbstractTracelessTensor,::Number)     error("Addition"   *_err) end
+function -(::AbstractTracelessTensor,::Number)     error("Subtraction"*_err) end
+function +(::Number,::AbstractTracelessTensor)     error("Addition"   *_err) end
+function -(::Number,::AbstractTracelessTensor)     error("Subtraction"*_err) end
+function +(::AbstractTracelessTensor,::MultiValue) error("Addition"   *_err) end
+function -(::AbstractTracelessTensor,::MultiValue) error("Subtraction"*_err) end
+function +(::MultiValue,::AbstractTracelessTensor) error("Addition"   *_err) end
+function -(::MultiValue,::AbstractTracelessTensor) error("Subtraction"*_err) end
 
 @inline function _eltype(op,r,a...)
   eltype(r)
@@ -390,6 +391,18 @@ end
   Meta.parse(str)
 end
 
+function inner(a::SkewSymTensorValue{D,Ta}, b::SkewSymTensorValue{D,Tb}) where {D,Ta,Tb}
+  iszero(D) && return zero(promote_type(Ta,Tb))
+  2*inner(VectorValue(a.data), VectorValue(b.data))
+end
+
+function inner(a::SkewSymTensorValue{D,Ta}, b::AbstractSymTensorValue{D,Tb}) where {D,Ta,Tb}
+  zero(promote_type(Ta,Tb))
+end
+function inner(a::AbstractSymTensorValue{D,Tb}, b::SkewSymTensorValue{D,Ta}) where {D,Ta,Tb}
+  zero(promote_type(Ta,Tb))
+end
+
 function inner(a::MultiValue{Tuple{D,D,D,D}}, b::MultiValue{Tuple{D,D,D,D}}) where D
   double_contraction(a,b)
 end
@@ -589,6 +602,36 @@ end
 const ⋅² = double_contraction
 
 ###############################################################
+# Congruent product
+###############################################################
+
+"""
+    congruent_prod(a, b)
+
+Given a square second order tensors `a` and a `b`, return `b`ᵀ⋅`a`⋅`b`.
+The type of the resulting value is (skew) symmetric stable w.r.t. `typeof(a)`.
+"""
+function congruent_prod(a::MultiValue{Tuple{D,D},Ta}, b::MultiValue{Tuple{D,D1},Tb}) where {D,D1,Ta,Tb}
+  T = promote_type(Ta,Tb)
+  V = _congruent_ret_type(a,D1)
+  (iszero(D) || iszero(D1)) && return zero(V{T})
+  V{T}(get_array(transpose(b) ⋅ a ⋅ b))
+end
+_congruent_ret_type(a,D1) = TensorValue{D1,D1}
+_congruent_ret_type(a::SymTensorValue,D1) = SymTensorValue{D1}
+_congruent_ret_type(a::SymTracelessTensorValue,D1) = SymTracelessTensorValue{D1}
+_congruent_ret_type(a::SkewSymTensorValue,D1) = SkewSymTensorValue{D1}
+
+
+function congruent_prod(a::Number, b::Number)
+  msg = """ operation only defined for 2nd order tensors `a` and `b` with
+      `size(b,1) == size(a, 1) == size(a, 2)`, got `size(a)=$(size(a))` and
+      `size(b)=$(size(b))`.
+      """
+  @unreachable msg
+end
+
+###############################################################
 # Reductions
 ###############################################################
 
@@ -707,6 +750,8 @@ function det(a::MultiValue{Tuple{3,3}})
     (a_11*a_23*a_32 + a_12*a_21*a_33 + a_13*a_22*a_31)
 end
 
+det(::SkewSymTensorValue{3,T}) where T = zero(T)
+
 """
     inv(a::MultiValue{Tuple{D,D}})
 
@@ -714,8 +759,13 @@ Inverse of a second order tensor.
 """
 inv(a::MultiValue{Tuple{D,D}}) where D = TensorValue(inv(get_array(a)))
 
-# this has better perf than the D=2,3 specialization below
-inv(a::SymTracelessTensorValue{2}) = SymTracelessTensorValue(inv(get_array(a)))
+const InverseStableTensorTypes{D} = Union{SymTensorValue{D}, SkewSymTensorValue{D}}
+
+function inv(a::InverseStableTensorTypes{D}) where D
+  ai = inv(get_array(a))
+  T = change_eltype(a, eltype(ai))
+  T(ai)
+end
 
 function inv(a::MultiValue{Tuple{1,1}})
   r = 1/a[1]
@@ -746,6 +796,23 @@ function inv(a::MultiValue{Tuple{3,3}})
     ( a_11*a_22 - a_12*a_21 )*c)
  TensorValue{3}(data)
 end
+
+function inv(a::SymTensorValue{2})
+ c = 1/det(a)
+ T = change_eltype(a,typeof(c))
+ T(a[2,2]*c, -a[2,1]*c, a[1,1]*c)
+end
+
+inv( ::SymTracelessTensorValue{1,T}) where T = TensorValue{1,1,T}(inv(zero(T)))
+function inv(a::SymTracelessTensorValue{2})
+ c = -1/det(a)
+ T = change_eltype(a,typeof(c))
+ T(a[1,1]*c, a[2,1]*c)
+end
+
+inv( ::SkewSymTensorValue{1,T}) where T = TensorValue{1,1,T}(inv(zero(T)))
+inv(a::SkewSymTensorValue{2}) = (typeof(a))(inv(a.data[1]))
+inv(a::SkewSymTensorValue{3,T,L}) where {T,L} = SkewSymTensorValue{3,T}( tfill(inv(zero(T)), Val(L)) )
 
 ###############################################################
 # Measure
@@ -835,6 +902,7 @@ Return the trace of a second order square tensor, defined by `Σᵢ vᵢᵢ` or 
   Meta.parse(str[1:(end-1)])
 end
 tr(::SymTracelessTensorValue{D,T}) where {D,T} = zero(T)
+tr(::SkewSymTensorValue{D,T}) where {D,T} = zero(T)
 tr(::MultiValue{Tuple{A,B}}) where {A,B} = throw(ArgumentError("Second order tensor is not square"))
 
 """
@@ -895,9 +963,10 @@ adjoint(a::AbstractSymTensorValue) = conj(a)
 @inline adjoint(a::AbstractSymTensorValue{D,T} where {D,T<:Real}) = transpose(a)
 
 transpose(a::AbstractSymTensorValue) = a
+transpose(a::SkewSymTensorValue) = -a
 
 ###############################################################
-# Symmetric part
+# Symmetric and Skew symmetric parts
 ###############################################################
 
 """
@@ -919,6 +988,7 @@ Return `v` if  `v isa AbstractSymTensorValue`.
 end
 
 symmetric_part(v::AbstractSymTensorValue) = v
+symmetric_part(v::SkewSymTensorValue) = zero(v)
 
 """
     skew_symmetric_part(v::MultiValue{Tuple{D,D}})::MultiValue{Tuple{D,D}}
@@ -938,12 +1008,19 @@ Return `v` if  `v isa AbstractSymTensorValue`.
   Meta.parse("TensorValue{D,D}($str)")
 end
 
+skew_symmetric_part(v::AbstractSymTensorValue) = zero(v)
+skew_symmetric_part(v::SkewSymTensorValue) = v
+
 ###############################################################
 # diag
 ###############################################################
 
 function LinearAlgebra.diag(a::MultiValue{Tuple{D,D},T}) where {D,T}
   VectorValue{D,T}((a[i,i] for i in 1:D)...)
+end
+
+function LinearAlgebra.diag(a::SkewSymTensorValue{D,T}) where {D,T}
+  zero(VectorValue{D,T})
 end
 
 ###############################################################
