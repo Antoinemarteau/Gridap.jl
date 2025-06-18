@@ -10,7 +10,9 @@ Singleton of the [`Bezier`](@ref) reference FE name.
 """
 const bezier = Bezier()
 
-Pushforward(::Type{Bezier}) = IdentityPiolaMap()
+Pushforward(::Type{Bezier}, ::Nothing) = IdentityPiolaMap()
+Pushforward(::Type{Bezier}, ::GradConformity) = IdentityPiolaMap()
+Pushforward(::Type{Bezier}, ::L2Conformity) = BrokenPiolaMap()
 
 """
     struct BezierRefFE{D} <: LagrangianRefFE{D}

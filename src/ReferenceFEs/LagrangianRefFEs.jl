@@ -26,7 +26,7 @@ Singleton of the [`Lagrangian`](@ref) reference FE name.
 """
 const lagrangian = Lagrangian()
 
-Pushforward(::Type{Lagrangian}) = IdentityPiolaMap()
+Pushforward(::Type{Lagrangian}, ::Nothing) = IdentityPiolaMap()
 
 """
     get_face_own_nodes(reffe::LagrangianRefFE[, conf::Conformity][, d::Int])

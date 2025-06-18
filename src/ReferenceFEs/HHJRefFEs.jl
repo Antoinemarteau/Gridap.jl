@@ -3,7 +3,7 @@ struct HellanHerrmannJhonson <: ReferenceFEName end
 
 const hhj = HellanHerrmannJhonson()
 
-Pushforward(::Type{HellanHerrmannJhonson}) = DoubleContraVariantPiolaMap()
+Pushforward(::Type{HellanHerrmannJhonson}, _) = DoubleContraVariantPiolaMap()
 
 """
     struct HellanHerrmannJhonson <: ReferenceFEName end

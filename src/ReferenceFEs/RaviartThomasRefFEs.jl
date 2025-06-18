@@ -18,7 +18,7 @@ Singleton of the [`RaviartThomas`](@ref) reference FE name.
 """
 const raviart_thomas = RaviartThomas()
 
-Pushforward(::Type{RaviartThomas}) = ContraVariantPiolaMap()
+Pushforward(::Type{RaviartThomas}, _) = ContraVariantPiolaMap()
 
 """
     RaviartThomasRefFE(::Type{T}, p::Polytope, order::Integer)

@@ -3,7 +3,7 @@ struct ArnoldWinther <: ReferenceFEName end
 
 const arnoldwinther = ArnoldWinther()
 
-Pushforward(::Type{ArnoldWinther}) = DoubleContraVariantPiolaMap()
+Pushforward(::Type{ArnoldWinther}, _) = DoubleContraVariantPiolaMap()
 
 """
     struct ArnoldWinther <: ReferenceFEName end

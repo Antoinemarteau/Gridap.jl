@@ -100,6 +100,7 @@ export INVALID_PERM
 export IdentityPiolaMap
 export CoVariantPiolaMap
 export ContraVariantPiolaMap
+export BrokenPiolaMap
 
 export Dof
 export get_nodes

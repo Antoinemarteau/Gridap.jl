@@ -121,6 +121,15 @@ get_name(::Type{<:ReferenceFE})::ReferenceFEName = @abstractmethod
 get_name(reffe::ReferenceFE) = get_name(typeof(reffe))
 
 """
+    get_name(::ReferenceFE)
+    get_name(::Type{ReferenceFE})
+
+Returns the [ReferenceFEName](@ref) of the given reference FE.
+"""
+get_name(::Type{<:ReferenceFE})::ReferenceFEName = @abstractmethod
+get_name(reffe::ReferenceFE) = get_name(typeof(reffe))
+
+"""
     num_dofs(reffe::ReferenceFE) -> Int
 
 Returns the number of DoFs, that is also the number of shape functions and the

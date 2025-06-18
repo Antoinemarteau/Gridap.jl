@@ -10,7 +10,7 @@ Singleton of the [`BDM`](@ref) reference FE name.
 """
 const bdm = BDM()
 
-Pushforward(::Type{BDM}) = ContraVariantPiolaMap()
+Pushforward(::Type{BDM}, _) = ContraVariantPiolaMap()
 
 """
     BDMRefFE(::Type{T}, p::Polytope, order::Integer)

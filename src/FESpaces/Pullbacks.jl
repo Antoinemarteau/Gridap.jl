@@ -6,7 +6,7 @@ function get_cell_dof_basis(
   model::DiscreteModel, cell_reffe::AbstractArray{T}, conf::Conformity
 ) where T <: ReferenceFE
 
-  pushforward = Pushforward(get_name(T))
+  pushforward = Pushforward(get_name(T), conf)
   if pushforward isa IdentityPiolaMap
     lazy_map(get_dof_basis,cell_reffe)
   else
@@ -21,7 +21,7 @@ function get_cell_shapefuns(
   model::DiscreteModel, cell_reffe::AbstractArray{T}, conf::Conformity
 ) where T <: ReferenceFE
 
-  pushforward = Pushforward(get_name(T))
+  pushforward = Pushforward(get_name(T), conf)
   if pushforward isa IdentityPiolaMap
     lazy_map(get_shapefuns,cell_reffe)
   else
@@ -59,6 +59,18 @@ function get_cell_pushforward(
   change = lazy_map(r -> Diagonal(ones(num_dofs(r))), cell_reffe) # TODO: Replace by edge-signs
   return change, (Jt,)
 end
+
+# BrokenPiolaMap
+
+function get_cell_pushforward(
+  ::BrokenPiolaMap, model::DiscreteModel, cell_reffe
+)
+  cell_map = get_cell_map(get_grid(model))
+  Jt = lazy_map(Broadcasting(∇),cell_map)
+  change = lazy_map(r -> Diagonal(ones(num_dofs(r))), cell_reffe) # TODO: Replace by edge-signs
+  return change, (Jt,)
+end
+
 
 # NormalSignMap
 

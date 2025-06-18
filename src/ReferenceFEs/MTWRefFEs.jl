@@ -3,7 +3,7 @@ struct MardalTaiWinther <: ReferenceFEName end
 
 const mtw = MardalTaiWinther()
 
-Pushforward(::Type{MardalTaiWinther}) = ContraVariantPiolaMap()
+Pushforward(::Type{MardalTaiWinther}, _) = ContraVariantPiolaMap()
 
 """
     struct MardalTaiWinther <: ReferenceFEName end
