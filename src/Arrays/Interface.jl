@@ -51,33 +51,34 @@ _getindex_nd!(s::IndexLinear,cache,a,i) = _getindex_1d!(s,cache,a,LinearIndices(
 _getindex_nd!(s::IndexCartesian,cache,a,i) = a[i]
 
 """
-    array_cache(a::AbstractArray)
+    array_cache(a::AbstractArray; kwargs...)
 
 Returns a cache object to be used in the [`getindex!`](@ref) function.
 It defaults to
 
-    array_cache(a::T) where T = nothing
+    array_cache(a::T; kwargs...) where T = nothing
 
 for types `T` such that `uses_hash(T) == Val(false)`, and
 
-    function array_cache(a::T) where T
+    function array_cache(a::T; kwargs...) where T
       hash = Dict{UInt,Any}()
-      array_cache(hash,a)
+      array_cache(hash,a; kwargs...)
     end
 
 for types `T` such that `uses_hash(T) == Val(true)`, see the [`uses_hash`](@ref) function. In the later case, the
 type `T` should implement the following signature:
 
-    array_cache(hash::Dict,a::AbstractArray)
+    array_cache(hash::Dict,a::AbstractArray; kwargs...)
 
-where we pass a dictionary (i.e., a hash table) in the first argument. This hash table can be used to test
+where we pass a dictionary (i.e., a hash table) in the first argument, and
+keyword arguments can be catched if desired. This hash table can be used to test
 if the object `a` has already built a cache and re-use it as follows
 
     id = objectid(a)
     if haskey(hash,id)
       cache = hash[id] # Reuse cache
     else
-      cache = ... # Build a new cache depending on your needs
+      cache = ... # Build a new cache depending on your needs, possibly using a kwarg
       hash[id] = cache # Register the cache in the hash table
     end
 
@@ -85,12 +86,12 @@ This mechanism is needed, e.g., to re-use intermediate results in complex lazy o
 In multi-threading computations, a different hash table per thread has to be used in order
 to avoid race conditions.
 """
-array_cache(a::AbstractArray) = _default_array_cache(a,uses_hash(a))
-array_cache(hash::Dict,a::AbstractArray) = _default_array_cache(hash,a,uses_hash(a))
-_default_array_cache(a,s::Val{true}) = array_cache(Dict{UInt,Any}(),a)
-_default_array_cache(a,s::Val{false}) = nothing
-_default_array_cache(hash::Dict,a,s::Val{false}) = array_cache(a)
-_default_array_cache(hash::Dict,a,s::Val{true}) = @abstractmethod
+array_cache(a::AbstractArray; kwargs...) = _default_array_cache(a,uses_hash(a); kwargs...)
+array_cache(hash::Dict,a::AbstractArray; kwargs...) = _default_array_cache(hash,a,uses_hash(a); kwargs...)
+_default_array_cache(a,s::Val{true}; kwargs...) = array_cache(Dict{UInt,Any}(),a; kwargs...)
+_default_array_cache(a,s::Val{false}; kwargs...) = nothing
+_default_array_cache(hash::Dict,a,s::Val{false}; kwargs...) = array_cache(a; kwargs...)
+_default_array_cache(hash::Dict,a,s::Val{true}; kwargs...) = @abstractmethod
 
 """
     uses_hash(::Type{<:AbstractArray})

@@ -137,7 +137,7 @@ Base.size(a::CartesianCellNodes) = a.partition
 
 Base.IndexStyle(::Type{<:CartesianCellNodes}) = IndexCartesian()
 
-function array_cache(a::CartesianCellNodes{D}) where D
+function array_cache(a::CartesianCellNodes{D}; kwargs...) where D
   zeros(Int32,2^D)
 end
 

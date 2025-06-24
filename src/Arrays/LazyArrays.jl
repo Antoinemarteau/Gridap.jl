@@ -159,10 +159,10 @@ function _get_cache(dict,a)
   return nothing
 end
 
-function array_cache(dict::Dict,a::LazyArray)
+function array_cache(dict::Dict,a::LazyArray; memoize_last_access=true, kwargs...)
   cache = _get_cache(dict,a)
   if cache === nothing
-    _cache = _array_cache!(dict,a)
+    _cache = _lazyarray_cache!(dict,a,memoize_last_access)
     dict[objectid(a)] = (a,_cache)
   else
     _cache = cache
@@ -175,7 +175,7 @@ mutable struct IndexItemPair{T,V}
   item::V
 end
 
-function _array_cache!(dict::Dict,a::LazyArray)
+function _lazyarray_cache!(dict::Dict,a::LazyArray,memo_last_access::Bool)
   @boundscheck begin
     @notimplementedif ! all(map(isconcretetype, map(eltype, a.args)))
     if ! (eltype(a.maps) <: Function)
@@ -187,34 +187,49 @@ function _array_cache!(dict::Dict,a::LazyArray)
   cg = array_cache(dict,a.maps)
   cf = map(fi->array_cache(dict,fi),a.args)
   cgi = return_cache(gi, fi...)
-  index = -1
-  #item = evaluate!(cgi,gi,testargs(gi,fi...)...)
-  item = return_value(gi,fi...)
-  (cg, cgi, cf), IndexItemPair(index, item)
+  if memo_last_access
+    index = -1
+    item = return_value(gi,fi...)
+    (cg, cgi, cf), IndexItemPair(index, item)
+  else
+    (cg, cgi, cf), nothing
+  end
 end
+
+_is_memoized(index_and_item::IndexItemPair, index) = index_and_item.index == index
+_is_memoized(::Nothing, index) = false
+
+function _memoize_last_access!(index_and_item::IndexItemPair, index, item)
+  index_and_item.index = index
+  index_and_item.item = item
+  index_and_item.item
+end
+_memoize_last_access!(::Nothing, _, item) = item
 
 function getindex!(cache, a::LazyArray, i::Integer)
   _cache, index_and_item = cache
   index = LinearIndices(a)[i]
-  if index_and_item.index != index
+  if !_is_memoized(index_and_item, index)
     cg, cgi, cf = _cache
     gi = getindex!(cg, a.maps, i)
-    index_and_item.item = _getindex_and_call!(cgi,gi,cf,a.args,i)
-    index_and_item.index = index
+    item = _getindex_and_call!(cgi,gi,cf,a.args,i)
+    return _memoize_last_access!(index_and_item, index, item)
+  else
+    return index_and_item.item
   end
-  index_and_item.item
 end
 
 function getindex!(cache, a::LazyArray{G,T,N}, i::Vararg{Integer,N}) where {G,T,N}
   _cache, index_and_item = cache
   index = LinearIndices(a)[i...]
-  if index_and_item.index != index
+  if !_is_memoized(index_and_item, index)
     cg, cgi, cf = _cache
     gi = getindex!(cg, a.maps, i...)
-    index_and_item.item = _getindex_and_call!(cgi,gi,cf,a.args,i...)
-    index_and_item.index = index
+    item = _getindex_and_call!(cgi,gi,cf,a.args,i...)
+    return _memoize_last_access!(index_and_item, index, item)
+  else
+    return index_and_item.item
   end
-  index_and_item.item
 end
 
 function _getindex_and_call!(cgi,gi,cf,args,i...)

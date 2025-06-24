@@ -149,7 +149,7 @@ function _ConformingFESpace(
   cell_dofs_ids, nfree, ndirichlet, dirichlet_dof_tag, dirichlet_cells = compute_conforming_cell_dofs(
     cell_fe,CellConformity(cell_fe),grid_topology,face_labeling,dirichlet_tags,dirichlet_components
   )
-  
+
   cell_shapefuns, cell_dof_basis = compute_cell_space(cell_fe,trian)
 
   cell_is_dirichlet = fill(false,num_cells(trian))
@@ -538,7 +538,7 @@ Base.size(a::CellDofsNonOriented) = (length(a.cell_to_faces),)
 
 Base.IndexStyle(::Type{<:CellDofsNonOriented}) = IndexLinear()
 
-function array_cache(a::CellDofsNonOriented)
+function array_cache(a::CellDofsNonOriented; kwargs...)
   n_dofs = testitem(a.ctype_to_num_dofs)
   T = eltype(eltype(a))
   v = zeros(T,n_dofs)

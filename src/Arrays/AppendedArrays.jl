@@ -81,9 +81,9 @@ end
 
 Base.size(v::AppendedArray) = (length(v.a)+length(v.b),)
 
-function array_cache(v::AppendedArray)
-  ca = array_cache(v.a)
-  cb = array_cache(v.b)
+function array_cache(v::AppendedArray; kwargs...)
+  ca = array_cache(v.a; kwargs...)
+  cb = array_cache(v.b; kwargs...)
   (ca,cb)
 end
 

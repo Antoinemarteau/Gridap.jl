@@ -135,11 +135,11 @@ function Base.getindex(a::CellDofIdsWithDofFixed,i::Integer)
   getindex!(cache,a,i)
 end
 
-function array_cache(a::CellDofIdsWithDofFixed)
+function array_cache(a::CellDofIdsWithDofFixed; kwargs...)
   @assert eltype(a.cell_dofs) == Vector{Int32}
   b = testitem(a.cell_dofs)
   c = CachedArray(b)
-  cache = array_cache(a.cell_dofs)
+  cache = array_cache(a.cell_dofs; kwargs...)
   (c, cache)
 end
 

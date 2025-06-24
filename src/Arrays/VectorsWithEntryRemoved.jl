@@ -17,8 +17,8 @@ end
 
 Base.size(v::VectorWithEntryRemoved) = (length(v.a)-1,)
 
-function array_cache(v::VectorWithEntryRemoved)
-  array_cache(v.a)
+function array_cache(v::VectorWithEntryRemoved; kwargs...)
+  array_cache(v.a; kwargs...)
 end
 
 function getindex!(cache,v::VectorWithEntryRemoved,i::Integer)
