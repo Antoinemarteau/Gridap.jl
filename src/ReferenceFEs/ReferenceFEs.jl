@@ -144,7 +144,7 @@ export num_nodes
 export test_lagrangian_reference_fe
 
 export LagrangianDofBasis
-export compute_monomial_basis
+export compute_polynomial_prebasis
 export compute_own_nodes
 export compute_face_orders
 export compute_nodes

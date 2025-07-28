@@ -8,27 +8,28 @@ using Gridap.Polynomials
 using Gridap.ReferenceFEs
 using JSON
 
-using Gridap.ReferenceFEs: monomial_basis
+using Gridap.ReferenceFEs: _polynomial_prebasis
 
 orders = (2,3)
-b = monomial_basis(Float64,QUAD,orders)
+b = _polynomial_prebasis(Float64,QUAD,orders)
 r = ((0,0), (1,0), (2,0), (0,1), (1,1), (2,1), (0,2), (1,2), (2,2), (0,3), (1,3), (2,3))
 @test get_exponents(b) == r
 
 orders = (1,1,2)
-b = monomial_basis(Float64,WEDGE,orders)
+b = _polynomial_prebasis(Float64,WEDGE,orders)
 r = ((0,0,0), (1,0,0), (0,1,0), (0,0,1), (1,0,1), (0,1,1), (0,0,2), (1,0,2), (0,1,2))
 @test get_exponents(b) == r
 
 orders = (1,1,1)
-b = monomial_basis(Float64,PYRAMID,orders)
+b = _polynomial_prebasis(Float64,PYRAMID,orders)
 r = ((0,0,0), (1,0,0), (0,1,0), (1,1, 0), (0,0,1))
 @test get_exponents(b) == r
 
 orders = (1,1,1)
-b = monomial_basis(Float64,TET,orders)
+b = _polynomial_prebasis(Float64,TET,orders)
 r = ((0,0,0), (1,0,0), (0,1,0), (0,0,1))
-@test get_exponents(b) == r
+@test get_order(b) == 1
+@test b isa BernsteinBasisOnSimplex
 
 orders = (2,2)
 extrusion = Tuple(QUAD.extrusion)
@@ -73,7 +74,7 @@ dofs = LagrangianDofBasis(SymTensorValue{2,Int},VERTEX,())
 dofs = LagrangianDofBasis(SymTracelessTensorValue{2,Int},VERTEX,())
 @test dofs.node_and_comp_to_dof == SymTracelessTensorValue{2,Int}[(1,2)]
 
-b = monomial_basis(VectorValue{2,Int},VERTEX,())
+b = _polynomial_prebasis(VectorValue{2,Int},VERTEX,())
 @test length(b) == 2
 @test evaluate(b,Point{0,Int}[(),()]) == VectorValue{2,Int}[(1, 0) (0, 1); (1, 0) (0, 1)]
 
@@ -133,7 +134,7 @@ d = 1
 
 orders = (0,0)
 
-b = compute_monomial_basis(Float64,QUAD,orders)
+b = compute_polynomial_prebasis(Float64,QUAD,orders)
 @test length(b.terms) == 1
 
 own_nodes = compute_own_nodes(QUAD,orders)

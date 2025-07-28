@@ -153,8 +153,9 @@ end
     is_Q(reffe::GenericLagrangianRefFE{GradConformity})
 """
 function is_Q(reffe::GenericLagrangianRefFE{GradConformity})
-  monomials = get_prebasis(reffe)
-  n = length(get_exponents(monomials))
+  prebasis = get_prebasis(reffe)
+  !(prebasis isa CartProdPolyBasis) && return false
+  n = length(get_exponents(prebasis))
   is_n_cube(get_polytope(reffe)) && (prod(get_orders(reffe).+1) == n)
 end
 
@@ -218,7 +219,7 @@ should be an indexable collection of `D` integers.
 This constructor requires `typeof(p)` to implement the following additional
 methods. They are currently implemented for `ExtrusionPolytope`.
 
-- [`compute_monomial_basis(::Type{T}, p::Polytope, orders) where T`](@ref)
+- [`compute_polynomial_prebasis(::Type{T}, p::Polytope, orders) where T`](@ref)
 - [`compute_own_nodes(p::Polytope, orders)`](@ref)
 - [`compute_face_orders(p::Polytope, face::Polytope, iface::Int, orders)`](@ref)
 
@@ -236,11 +237,13 @@ and can be overloaded.
 - [`compute_own_nodes_permutations(p::Polytope, interior_nodes)`](@ref)
 - [`compute_lagrangian_reffaces(::Type{T}, p::Polytope, orders) where T`](@ref)
 """
-function LagrangianRefFE(::Type{T},p::Polytope{D},orders;space::Symbol=_default_space(p)) where {T,D}
+function LagrangianRefFE(::Type{T},p::Polytope{D},orders;
+                          space::Symbol=_default_space(p)) where {T,D}
+
   if space == :P && is_n_cube(p)
-    return _PDiscRefFE(T,p,orders)
+    _PDiscRefFE(T,p,orders)      # SᵨΛᴰ(□ᴰ), ρ=order+1
   elseif space == :S && is_n_cube(p)
-    SerendipityRefFE(T,p,orders)
+    SerendipityRefFE(T,p,orders) # SᵨΛ⁰(□ᴰ), ρ=order+1
   else
     if any(map(i->i==0,orders)) && !all(map(i->i==0,orders))
       cont = map(i -> i == 0 ? DISC : CONT,orders)
@@ -272,7 +275,8 @@ end
 
 function _lagrangian_ref_fe(::Type{T},p::Polytope{D},orders) where {T,D}
 
-  prebasis = compute_monomial_basis(T,p,orders)
+  prebasis = compute_polynomial_prebasis(T,p,orders)
+
   nodes, face_own_nodes = compute_nodes(p,orders)
   dofs = LagrangianDofBasis(T,nodes)
   reffaces = compute_lagrangian_reffaces(T,p,orders)
@@ -304,8 +308,8 @@ function _lagrangian_ref_fe(::Type{T},p::Polytope{D},orders) where {T,D}
 
 end
 
-function monomial_basis(::Type{T},p::Polytope,orders) where T
-  compute_monomial_basis(T,p,orders)
+function _polynomial_prebasis(::Type{T},p::Polytope,orders) where T
+  compute_polynomial_prebasis(T,p,orders)
 end
 
 function LagrangianDofBasis(::Type{T},p::Polytope,orders) where T
@@ -387,9 +391,9 @@ function LagrangianRefFE(::Type{T},p::Polytope{D},order::Int;space::Symbol=_defa
   LagrangianRefFE(T,p,orders;space=space)
 end
 
-function monomial_basis(::Type{T},p::Polytope{D},order::Int) where {D,T}
+function _polynomial_prebasis(::Type{T},p::Polytope{D},order::Int) where {D,T}
   orders = tfill(order,Val{D}())
-  monomial_basis(T,p,orders)
+  _polynomial_prebasis(T,p,orders)
 end
 
 function LagrangianDofBasis(::Type{T},p::Polytope{D},order::Int) where {T,D}
@@ -401,12 +405,12 @@ end
 # for building LagrangianRefFEs in a seamless way
 
 """
-    compute_monomial_basis(::Type{T}, p::Polytope, orders) -> MonomialBasis
+    compute_polynomial_prebasis(::Type{T}, p::Polytope, orders) -> MonomialBasis
 
-Returns the monomial basis of value type `T` and order per direction described
-by `orders` on top of `p`.
+Returns the polynomial basis of the Lagrangian space with value type `T` and
+order per direction described by `orders`, for the polytopes `p`.
 """
-function compute_monomial_basis(::Type{T},p::Polytope,orders) where T
+function compute_polynomial_prebasis(::Type{T},p::Polytope,orders) where T
   @abstractmethod
 end
 
@@ -526,7 +530,7 @@ end
   for iface in 1:num_faces(p,d)
     face = Polytope{d}(p,iface)
     face_ref_x = get_vertex_coordinates(face)
-    face_prebasis = monomial_basis(Float64,face,1)
+    face_prebasis = _polynomial_prebasis(Float64,face,1)
     change = inv(evaluate(face_prebasis,face_ref_x))
     face_shapefuns = linear_combination(change,face_prebasis)
     face_vertex_ids = get_faces(p,d,0)[iface]
@@ -556,7 +560,7 @@ _compute_node_permutations(::Polytope{0}, interior_nodes) = [[1]]
 
 function _compute_node_permutations(p, interior_nodes)
   vertex_to_coord = get_vertex_coordinates(p)
-  lbasis = monomial_basis(Float64,p,1)
+  lbasis = _polynomial_prebasis(Float64,p,1)
   change = inv(evaluate(lbasis,vertex_to_coord))
   lshapefuns = linear_combination(change,lbasis)
   perms = get_vertex_permutations(p)
@@ -609,7 +613,18 @@ function LagrangianRefFE(p::ExtrusionPolytope)
   LagrangianRefFE(Float64,p,order)
 end
 
-function compute_monomial_basis(::Type{T},p::ExtrusionPolytope{D},orders) where {D,T}
+function compute_polynomial_prebasis(::Type{T},p::ExtrusionPolytope{D},orders) where {D,T}
+  if !isempty(orders)
+    isotropic = allequal(orders)
+    order = first(orders)
+    isotropic && is_n_cube(p) && return LegendreBasis(Val(D),T,order)
+    if order < 5*(5-D) # 15 in 2D, 10 in 3D
+      # BernsteinBasisOnSimplex becomes slower than monomial at too high order,
+      # this could be fixed by avoiding huge generated functions in evaluate
+      isotropic && is_simplex(p)&& return BernsteinBasisOnSimplex(Val(D),T,order)
+    end
+  end
+
   extrusion = Tuple(p.extrusion)
   terms = _monomial_terms(extrusion,orders)
   MonomialBasis(Val(D),T,orders,terms)

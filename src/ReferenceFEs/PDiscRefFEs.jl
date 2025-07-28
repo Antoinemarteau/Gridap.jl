@@ -9,7 +9,9 @@ function _PDiscRefFE(::Type{T},p::Polytope,order::Integer) where T
   D = num_cell_dims(p)
   extrusion = tfill(TET_AXIS,Val{D}())
   simplex = ExtrusionPolytope(extrusion)
-  reffe = LagrangianRefFE(T,simplex,order)
+  reffe = LagrangianRefFE(T,simplex,order; space=:P)
+  # basis for SᵣΛᴰ(□ᴰ), r=order, which is ℙᴰᵣ
+  prebasis = BernsteinBasisOnSimplex(Val(D), T, order)
   metadata = nothing
   face_nodes = [Int[] for face in 1:num_faces(p)]
   face_nodes[end] = collect(1:num_nodes(reffe))
@@ -21,7 +23,7 @@ function _PDiscRefFE(::Type{T},p::Polytope,order::Integer) where T
   reffe = GenericRefFE{typeof(conf)}(
     num_dofs(reffe),
     p,
-    get_prebasis(reffe),
+    prebasis,
     get_dof_basis(reffe),
     conf,
     metadata,

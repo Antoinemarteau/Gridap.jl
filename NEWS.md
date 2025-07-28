@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `JacobiPolynomial` is renamed `Legendre` and subtypes `Polynomial`
 - `JacobiPolynomialBasis` is renamed `LegendreBasis`
 - `ModalC0BasisFunction` is renamed `ModalC0` and subtypes `Polynomial`
+- `ReferenceFEs.compute_monomial_basis` was renamed `ReferenceFEs.compute_polynomial_prebasis`
 
 ### Deprecated
 

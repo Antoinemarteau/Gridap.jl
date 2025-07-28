@@ -50,7 +50,7 @@ function _cd_lagrangian_ref_fe(::Type{T},p::ExtrusionPolytope{D},orders,cont) wh
 
   @check isa(p,ExtrusionPolytope)
 
-  prebasis = compute_monomial_basis(T,p,orders)
+  prebasis = compute_polynomial_prebasis(T,p,orders)
 
   nodes, face_own_nodes = cd_compute_nodes(p,orders)
   dofs = LagrangianDofBasis(T,nodes)
@@ -144,7 +144,7 @@ end
     if active_faces[offset+iface]
       face = Polytope{d}(p,iface)
       face_ref_x = get_vertex_coordinates(face)
-      face_prebasis = monomial_basis(Float64,face,1)
+      face_prebasis = _polynomial_prebasis(Float64,face,1)
       change = inv(evaluate(face_prebasis,face_ref_x))
       face_shapefuns = linear_combination(change,face_prebasis)
       face_vertex_ids = get_faces(p,d,0)[iface]

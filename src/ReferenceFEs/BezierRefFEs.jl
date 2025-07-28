@@ -33,7 +33,7 @@ function BezierRefFE(::Type{T},p::Polytope{D},orders) where {D,T}
   reffe = LagrangianRefFE(T,p,orders)
   nodes = get_node_coordinates(reffe)
   prebasis = get_prebasis(reffe)
-  node_to_own_node = compute_node_to_bezier_node(prebasis,nodes)
+  prebasis, node_to_own_node = compute_node_to_bezier_node(p,prebasis,nodes)
   shapefuns = berstein_basis(prebasis,p)
   shapefuns = collect(lazy_map(Reindex(shapefuns),node_to_own_node))
   lagreffaces = reffe.reffe.metadata
@@ -111,13 +111,24 @@ function _lagrange_to_bezier_fe(::Type{T},reffe::LagrangianRefFE) where T
   BezierRefFE(T,get_polytope(reffe),get_orders(reffe))
 end
 
-function compute_node_to_bezier_node(prebasis::MonomialBasis{D,T},nodes) where {D,T}
+function compute_node_to_bezier_node(p,prebasis::PolynomialBasis{D,T},nodes) where {D,T}
+  if is_simplex(p)
+    monomial_basis = MonomialBasis(Val(D),T,get_order(prebasis),Polynomials._p_filter)
+  elseif is_n_cube(p)
+    monomial_basis = MonomialBasis(Val(D),T,get_order(prebasis),Polynomials._q_filter)
+  else
+    @unreachable "Bezier reference FEs only defined on simplices and n-cubes, got $p."
+  end
+  compute_node_to_bezier_node(p, monomial_basis, nodes)
+end
+
+function compute_node_to_bezier_node(p,prebasis::MonomialBasis{D,T},nodes) where {D,T}
   orders = get_orders(prebasis)
   terms = _coords_to_terms(nodes,orders)
   _prebasis = MonomialBasis(Val(D),T,orders,terms)
   _exps = get_exponents(_prebasis)
   exps = get_exponents(prebasis)
-  [ findfirst( isequal(i), exps) for i in _exps ]
+  prebasis, [ findfirst( isequal(i), exps) for i in _exps ]
 end
 
 ## Bernstein Basis

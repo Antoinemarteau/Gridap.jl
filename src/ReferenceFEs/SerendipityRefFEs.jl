@@ -12,12 +12,12 @@ Singleton of the [`Serendipity`](@ref) reference FE name.
 const serendipity = Serendipity()
 
 """
-    SerendipityRefFE(::Type{T}, p::Polytope, order::Int)
-    SerendipityRefFE(::Type{T}, p::Polytope, orders::Tuple)
+    SerendipityRefFE(::Type{T}, p::Polytope, order::Int,    PT=Bernstein)
+    SerendipityRefFE(::Type{T}, p::Polytope, orders::Tuple, PT=Bernstein)
 
 Return a Lagrangian reference FE whose underlying approximation space is the
 serendipity polynomial space 𝕊r of order `order`. Implemented on n-cubes with
-homogneous order.
+homogneous order. `PT` is the polynomial family for the pre-basis.
 
 The type of the polytope `p` has to implement all the queries detailed in the
 constructor [`LagrangianRefFE(::Type{T}, p::Polytope{D}, orders) where {T,D}`](@ref).
@@ -106,7 +106,7 @@ get_extrusion(p::SerendipityPolytope{D}) where D = Point(tfill(HEX_AXIS,Val{D}()
 
 # Implemented polytope interface for LagrangianRefFEs
 
-function compute_monomial_basis(::Type{T},p::SerendipityPolytope{D},orders) where {T,D}
+function compute_polynomial_prebasis(::Type{T},p::SerendipityPolytope{D},orders) where {T,D}
   MonomialBasis(Val(D),T,orders,_ser_filter)
 end
 

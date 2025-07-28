@@ -210,32 +210,30 @@ function get_vtknodes(reffe::LagrangianRefFE)
   get_vtknodes(p,basis)
 end
 
-function get_vtkid(p::ExtrusionPolytope, basis::MonomialBasis)
-  exponents = get_exponents(basis)
-  vtkid, _ = _vtkinfo_extrusion_polytope(p,exponents)
+function get_vtkid(p::ExtrusionPolytope, basis::PolynomialBasis)
+  vtkid, _ = _vtkinfo_extrusion_polytope(p,basis)
   vtkid
 end
 
-function get_vtknodes(p::ExtrusionPolytope, basis::MonomialBasis)
-  exponents = get_exponents(basis)
-  _, vtknodes = _vtkinfo_extrusion_polytope(p,exponents)
+function get_vtknodes(p::ExtrusionPolytope, basis::PolynomialBasis)
+  _, vtknodes = _vtkinfo_extrusion_polytope(p,basis)
   vtknodes
 end
 
-function get_vtkid(p::SerendipityPolytope,basis::MonomialBasis)
+function get_vtkid(p::SerendipityPolytope,basis::PolynomialBasis)
   get_vtkid(p.hex,basis)
 end
 
-function get_vtknodes(p::SerendipityPolytope,basis::MonomialBasis)
+function get_vtknodes(p::SerendipityPolytope,basis::PolynomialBasis)
   get_vtknodes(p.hex,basis)
 end
 
-function _vtkinfo_extrusion_polytope(p,exponents)
+function _vtkinfo_extrusion_polytope(p,polynomials)
 
   # Taken from the vtk specification
   # https://vtk.org/wp-content/uploads/2015/04/file-formats.pdf
 
-  n_nodes = length(exponents)
+  n_nodes = length(polynomials)
 
   if p == VERTEX
     if n_nodes == 1
@@ -382,7 +380,7 @@ end
 function _vtkcells(trian::Geometry.PolytopalGrid{2})
   polys = get_polytopes(trian)
   cell_to_nodes = get_cell_node_ids(trian)
-  
+
   V = eltype(cell_to_nodes)
   meshcells = Vector{MeshCell{WriteVTK.VTKCellTypes.VTKCellType,V}}(undef, length(polys))
   for (cell, poly) in enumerate(polys)
@@ -396,7 +394,7 @@ end
 function _vtkcells(trian::Geometry.PolytopalGrid{3})
   polys = get_polytopes(trian)
   cell_to_nodes = get_cell_node_ids(trian)
-  
+
   meshcells = Vector{WriteVTK.VTKPolyhedron}(undef, length(polys))
   for (cell, poly) in enumerate(polys)
     nodes = cell_to_nodes[cell]
