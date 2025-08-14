@@ -202,3 +202,132 @@ function get_facet_flux_sign_flip(
 
   sign_flip = Diagonal(sign_flip)
 end
+
+# Smart computation of dof and shapefun bases for geometrically decomposed polybases
+
+"""
+    compute_shapefuns(dofs, prebasis, p::Polytope, conf::Conformity)
+
+For `prebasis` admitting a geometric decomposition over `p` for `conf`, this
+methods exploites the by-block triangular structure of the matrix for better
+accuracy of the matrix inversion.
+
+It is assumed that face ownership of `dofs` is relative to `p` faces for `conf`.
+"""
+function compute_shapefuns(dofs, prebasis, p::Polytope, conf::Conformity)
+  if !has_geometric_decomposition(prebasis,p,conf)
+    return compute_shapefuns(dofs, prebasis)
+  end
+
+  inv_eval = _inverse_dofs_of_GD_funs(dofs, prebasis, p, conf)
+  linear_combination(inv_eval, prebasis)
+end
+
+"""
+    compute_dofs(predofs, shapefuns, p::Polytope, conf::Conformity)
+
+For `shapefuns` admitting a geometric decomposition over `p` for `conf`, this
+methods exploites the by-block triangular structure of the matrix for better
+accuracy of the matrix inversion.
+
+It is assumed that face ownership of `predofs` is relative to `p` faces for `conf`.
+"""
+function compute_dofs(predofs, shapefuns, p::Polytope, conf::Conformity)
+  if !has_geometric_decomposition(shapefuns,p,conf)
+    return compute_dofs(predofs, shapefuns)
+  end
+
+  inv_eval = _inverse_dofs_of_GD_funs(predofs, shapefuns, p, conf)
+  linear_combination(transpose(inv_eval), predofs)
+end
+
+function _inverse_dofs_of_GD_funs(dofs,funs,p,conf)
+  face_own_dofs = get_face_own_dofs(dofs)
+  face_own_funs = get_face_own_funs(funs,p,conf)
+  @check length(face_own_dofs) == length(face_own_funs)
+
+  own_dofs_blocks = filter(!isempty, face_own_dofs)
+  own_funs_blocks = filter(!isempty, face_own_funs)
+  @check begin
+    lt  = (s,t) -> maximum(s) < minimum(t)
+    are_sorted = issorted(own_dofs_blocks; lt) && issorted(own_funs_blocks; lt)
+    @notimplementedif !are_sorted "Current implementation assumes owned dofs and funs are by-face increasing. Using a `sortperm` is necessary here."
+    true
+  end
+
+  block_widths  = length.(own_funs_blocks)
+  block_heights = length.(own_dofs_blocks)
+  @check block_widths == block_heights "`dofs` and `funs` do not satisfy the same geometric decomposition"
+
+  #M = evaluate(dofs, funs)
+  #BM = BlockedArray(deepcopy(M), block_heights, block_widths)
+  #BBM = deepcopy(BM)
+  #@show BM
+  #nb_blocks = length(block_widths)
+  #for i in 1:nb_blocks
+  #  @show i,i
+  #  ii = Block(i,i)
+  #  BM[ii] = inv(BM[ii])
+  #  #@show bii
+  #  #@show BM[bii]
+  #  for j in i-1:-1:1
+  #    @show i,j
+  #    ij = Block(i,j)
+  #    s = zero(BM[ij])
+  #    @show length(j:i-1)
+  #    for k in i-1:-1:j
+  #      ik = Block(i,k)
+  #      kj = Block(k,j)
+  #      if k == j
+  #        #@show ik, kj
+  #      end
+  #      #s += BM[ik]*BM[kj]
+  #      s = s + BM[ik]*BM[kj]
+  #    end
+  #    BM[ij] = -BM[ii]*s
+  #    #IMij = -BM[ii]*s
+  #    #BM[ij] .= IMij
+  #    zer = sum( BBM[Block(i,k)] * BM[Block(k,j)] for k in 1:length(block_widths))
+  #    #@show zer
+  #  end
+  #end
+  #BM
+
+  #setprecision(BigFloat, 300) do
+    M = evaluate(dofs, funs)
+    @show cond(M)
+    Mbf = convert(Matrix{BigFloat}, M)
+    invMbf = inv(Mbf)
+    invM = convert(Matrix{Float64}, invMbf)
+  #end
+  BM = BlockedArray(M, block_heights, block_widths)
+  IM = deepcopy(BM)
+  #@show BM
+  nb_blocks = length(block_widths)
+  for i in 1:nb_blocks
+    ii = Block(i,i)
+    #IM[ii] = BM[ii]\LinearAlgebra.I
+    IM[ii] = inv(BM[ii])
+    @show cond(BM[ii])
+    for j in i-1:-1:1
+      ij = Block(i,j)
+      s = zero(IM[ij])
+      for k in i-1:-1:j
+        ik = Block(i,k)
+        kj = Block(k,j)
+        s = s + BM[ik]*IM[kj]
+      end
+      #IM[ij] = -IM[ii]*s
+      IM[ij] = -BM[ii]\s
+      #zer = sum( BM[Block(i,k)] * IM[Block(k,j)] for k in 1:length(block_widths))
+      #@show zer
+    end
+  end
+
+  ##inv(evaluate(dofs,funs))
+  ##inv(BlockedArray(evaluate(dofs,funs), block_heights, block_widths))
+  IM
+
+  #invM
+end
+

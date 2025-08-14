@@ -12,6 +12,7 @@ using LinearAlgebra
 using StaticArrays
 using Combinatorics
 using FillArrays
+using BlockArrays
 using AutoHashEquals: @auto_hash_equals as @ahe
 using ..Gridap
 

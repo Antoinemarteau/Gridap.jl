@@ -460,8 +460,8 @@ function MomentBasedReferenceFE(
       shapefuns = linear_combination(sign_flip,shapefuns)
     end
 
-    dofs = compute_dofs(predofs, shapefuns) # TODO smart inverse
     face_own_dofs = get_face_own_funs(prebasis, p, conformity)
+    dofs = compute_dofs(predofs, shapefuns, p, conformity)
     return GenericRefFE{typeof(name)}(
       n_dofs, p, predofs, conformity, metadata, face_own_dofs, shapefuns, dofs
     )
@@ -469,7 +469,8 @@ function MomentBasedReferenceFE(
 
   # else, standard prebasis inversion
   face_own_dofs = get_face_own_dofs(dof_basis)
+  shapefuns = compute_shapefuns(dof_basis, prebasis, p, conformity)
   GenericRefFE{typeof(name)}(
-    n_dofs, p, prebasis, dof_basis, conformity, metadata, face_own_dofs
+    n_dofs, p, prebasis, dof_basis, conformity, metadata, face_own_dofs, shapefuns
   )
 end
