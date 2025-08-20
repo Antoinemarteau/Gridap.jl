@@ -4,8 +4,13 @@
 Type representing ModalC0 polynomials, c.f. [ModalC0 polynomials](@ref) section.
 
 Reference: Eq. (17) in https://doi.org/10.1016/j.camwa.2022.09.027
+
+The first 1D polynomial, 1-x, is of order 1 instead of 0, and the last one, x,
+is of order 1 istead of K. So the complete 1D basis isn't hierarchical.
 """
 struct ModalC0 <: Polynomial end
+
+isHierarchical(::Type{ModalC0}) = false
 
 """
     ModalC0Basis{D,V,T} <: PolynomialBasis{D,V,ModalC0}
@@ -126,6 +131,13 @@ function get_orders(b::ModalC0Basis)
   b.orders
 end
 
+function testvalue(::Type{ModalC0Basis{D,V,T}}) where {D,V,T}
+  orders = tfill(1,Val{D}())
+  sa = Point{D,T}(tfill(zero(T),Val(D)))
+  sb = Point{D,T}(tfill( one(T),Val(D)))
+  ModalC0Basis{D}(V,orders,sa,sb)
+end
+
 # Helpers
 
 function _sort_by_nfaces!(terms::Vector{CartesianIndex{D}},orders) where D
@@ -182,8 +194,8 @@ end
 _get_static_parameters(::ModalC0Basis) = nothing
 
 function _evaluate_nd!(
-  basis::ModalC0Basis{D,V,T}, x,
-  r::AbstractMatrix{V}, i,
+  basis::ModalC0Basis{D,V}, x,
+  r::AbstractMatrix, i,
   c::AbstractMatrix{T}, ::Nothing) where {D,V,T}
 
   terms  = basis.terms
@@ -225,7 +237,7 @@ end
 end
 
 function _gradient_nd!(
-  basis::ModalC0Basis{D,V,T}, x,
+  basis::ModalC0Basis{D,V}, x,
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
@@ -306,7 +318,7 @@ end
 end
 
 function _hessian_nd!(
-  basis::ModalC0Basis{D,V,T}, x,
+  basis::ModalC0Basis{D,V}, x,
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
@@ -362,7 +374,7 @@ end
 # Computers & Mathematics with Applications,
 # https://doi.org/10.1016/j.camwa.2022.09.027
 function _evaluate_1d_mc0!(c::AbstractMatrix{T},x,a,b,order,d) where T
-  @assert order > 0
+  @check order > 0
   n = order + 1
   o = one(T)
   @inbounds c[d,1] = o - x[d]
@@ -376,7 +388,7 @@ function _evaluate_1d_mc0!(c::AbstractMatrix{T},x,a,b,order,d) where T
 end
 
 function _gradient_1d_mc0!(g::AbstractMatrix{T},x,a,b,order,d) where T
-  @assert order > 0
+  @check order > 0
   n = order + 1
   o = one(T)
   @inbounds g[d,1] = -o
@@ -393,7 +405,7 @@ function _gradient_1d_mc0!(g::AbstractMatrix{T},x,a,b,order,d) where T
 end
 
 function _hessian_1d_mc0!(h::AbstractMatrix{T},x,a,b,order,d) where T
-  @assert order > 0
+  @check order > 0
   n = order + 1
   z = zero(T)
   o = one(T)
@@ -421,19 +433,34 @@ end
 # For possible use with CartProdPolyBasis etc.
 # Make it for x∈[0,1] like the other 1D bases.
 
-function _evaluate_1d!(::Type{ModalC0},::Val{K},c::AbstractMatrix{T},x,d) where {K,T<:Number}
+function _evaluate_1d!(::Type{ModalC0},K,c::AbstractMatrix{T},x,d) where T<:Number
+  if iszero(K)
+    @inbounds c[d,1] = one(T)
+    return
+  end
+
   a = zero(x)
   b = zero(x) .+ one(T)
   @inline _evaluate_1d_mc0!(c,x,a,b,K,d)
 end
 
-function _gradient_1d!(::Type{ModalC0},::Val{K},g::AbstractMatrix{T},x,d) where {K,T<:Number}
+function _gradient_1d!(::Type{ModalC0},K,g::AbstractMatrix{T},x,d) where T<:Number
+  if iszero(K)
+    @inbounds g[d,1] = zero(T)
+    return
+  end
+
   a = zero(x)
   b = zero(x) .+ one(T)
   @inline _gradient_1d_mc0!(g,x,a,b,K,d)
 end
 
-function _hessian_1d!(::Type{ModalC0},::Val{K},h::AbstractMatrix{T},x,d) where {K,T<:Number}
+function _hessian_1d!(::Type{ModalC0},K,h::AbstractMatrix{T},x,d) where T<:Number
+  if iszero(K)
+    @inbounds h[d,1] = zero(T)
+    return
+  end
+
   a = zero(x)
   b = zero(x) .+ one(T)
   @inline _hessian_1d_mc0!(h,x,a,b,K,d)

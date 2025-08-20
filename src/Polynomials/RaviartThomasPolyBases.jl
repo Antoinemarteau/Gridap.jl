@@ -8,7 +8,20 @@ Basis of the vector valued (`V<:VectorValue{D}`) space
 where 𝕊ₙ is a `D`-multivariate scalar polynomial space of maximum degree n = `K`-1.
 
 This ℝ𝕋ᴰₙ is the polynomial space for Raviart-Thomas elements with divergence in 𝕊ₙ.
-Its maximum degree is n+1 = `K`. `get_order` on it returns `K`.
+Its maximum degree, that `get_order` returns, is n+1 = `K`.
+
+!!! warning
+    Using this basis on simplices is not recommanded, [`BarycentricPmΛBasis`](@ref) is better numerically conditioned for higher degrees, they are obtained by using `Bernstein` as argument of [`FEEC_poly_basis`](@ref) .
+
+# Example:
+
+```@example
+# a basis for Raviart-Thomas on tetrahedra with divergence in ℙ₂
+b = RaviartThomasPolyBasis{3}(Monomial, Float64, 2)
+
+# a basis for Raviart-Thomas on quadrilateral with divergence in ℙ₃
+b = RaviartThomasPolyBasis{2}(Monomial, Float64, 3, _q_filter)
+```
 
 The space 𝕊ₙ, typically ℙᴰₙ or ℚᴰₙ, does not need to have a tensor product
 structure of 1D scalar spaces. Thus, the ℝ𝕋ᴰₙ component's scalar spaces are not
@@ -23,7 +36,7 @@ struct RaviartThomasPolyBasis{D,V,PT} <: PolynomialBasis{D,V,PT}
   pterms::Vector{CartesianIndex{D}}
   sterms::Vector{CartesianIndex{D}}
 
-  """
+  @doc"""
       RaviartThomasPolyBasis{D}(::Type{PT}, ::Type{T}, order::Int, _filter::Function=_p_filter)
 
   Where `_filter` defines 𝕊ₙ and `order` = n = K-1 (cf. struct docstring).
@@ -59,6 +72,10 @@ end
 Base.size(b::RaviartThomasPolyBasis{D}) where {D} = (D*length(b.pterms) + length(b.sterms), )
 get_order(b::RaviartThomasPolyBasis) = b.max_order
 
+function testvalue(::Type{RaviartThomasPolyBasis{D,V,PT}}) where {D,V,PT}
+  T = eltype(V)
+  RaviartThomasPolyBasis{D}(PT, T, 0)
+end
 
 #################################
 # nD evaluations implementation #
@@ -66,14 +83,14 @@ get_order(b::RaviartThomasPolyBasis) = b.max_order
 
 function _evaluate_nd!(
   b::RaviartThomasPolyBasis{D,V,PT}, x,
-  r::AbstractMatrix{V}, i,
-  c::AbstractMatrix{T}, VK::Val) where {D,V,PT,T}
+  r::AbstractMatrix{Vr}, i,
+  c::AbstractMatrix{T}, ::Val{K}) where {D,V,PT,Vr,T,K}
 
   for d in 1:D
-    _evaluate_1d!(PT,VK,c,x,d)
+    _evaluate_1d!(PT,K,c,x,d)
   end
 
-  m = zero(Mutable(V))
+  m = zero(Mutable(Vr))
   k = 1
 
   @inbounds begin
@@ -116,10 +133,10 @@ function _gradient_nd!(
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
-  s::MVector{D,T}, VK::Val) where {D,V,PT,G,T}
+  s::MVector{D,T}, ::Val{K}) where {D,V,PT,G,T,K}
 
   for d in 1:D
-    _derivatives_1d!(PT,VK,(c,g),x,d)
+    _derivatives_1d!(PT,K,(c,g),x,d)
   end
 
   m = zero(Mutable(G))
@@ -183,41 +200,3 @@ function _gradient_nd!(
   end
 end
 
-"""
-    PCurlGradBasis(::Type{PT}, ::Val{D}, ::Type{T}, order::Int) :: PolynomialBasis
-
-Return a basis of
-
-ℝ𝕋ᴰₙ(△) = (ℙᴰₙ)ᴰ ⊕ x (ℙᴰₙ \\ ℙᴰₙ₋₁)
-
-with n=`order`, the polynomial space for Raviart-Thomas elements on
-`D`-dimensional simplices with scalar type `T`.
-
-The `order`=n argument of this function has the following meaning: the divergence
-of the functions in this basis is in ℙᴰₙ.
-
-`PT<:Polynomial` is the choice of the family of the scalar 1D basis polynomials,
-it must be hierarchical, see [`isHierarchical`](@ref).
-
-# Example:
-
-```jldoctest
-# a basis for Raviart-Thomas on tetrahedra with divergence in ℙ₂
-b = PCurlGradBasis(Monomial, Val(3), Float64, 2)
-```
-
-For more details, see [`RaviartThomasPolyBasis`](@ref), as `PCurlGradBasis` returns
-an instance of\\
-`RaviartThomasPolyBasis{D, VectorValue{D,T}, order+1, PT}`  for `D`>1, or\\
-`CartProdPolyBasis{1, VectorValue{1,T}, order+1, PT}` for `D`=1.
-"""
-function PCurlGradBasis(::Type{PT},::Val{D},::Type{T},order::Int) where {PT,D,T}
-  RaviartThomasPolyBasis{D}(PT, T, order)
-end
-
-function PCurlGradBasis(::Type{PT},::Val{1},::Type{T},order::Int) where {PT,T}
-  @check T<:Real "T needs to be <:Real since represents the type of the components of the vector value"
-
-  V = VectorValue{1,T}
-  CartProdPolyBasis(PT, Val(1), V, order+1)
-end

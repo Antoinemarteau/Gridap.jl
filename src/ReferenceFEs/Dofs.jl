@@ -1,32 +1,46 @@
+"""
+    abstract type Dof <: Map
+
+Abstract type for a degree of freedom, seen as a linear form over a functional
+space (typically a polynomial space). The domain is thus a [`Field`](@ref) set
+and the range the scalar set.
+"""
 abstract type Dof <: Map end
 
 """
     struct LinearCombinationDofVector{T<:Dof,V,F} <: AbstractVector{T}
       values :: V
-      dofs   :: F
+      predofs:: F
     end
 
-Type that implements a dof basis (a) as the linear combination of a dof basis
-(b). The dofs are first evaluated at dof basis (b) (field `dofs`) and the
-dof values are next mapped to dof basis (a) applying a change of basis (field
+Type that implements a dof basis (a) as the linear combination of a dof pre-basis
+(b). The dofs are first evaluated at the dof pre-basis (b) (field `predofs`) and the
+predof values are next mapped to dof basis (a) applying a change of basis (field
 `values`).
 
 Fields:
 
 - `values::AbstractMatrix{<:Number}` the matrix of the change from dof basis (b) to (a)
-- `dofs::AbstractVector{T}` A type representing dof basis (b), with `T<:Dof`
+- `predofs::AbstractVector{T}` A type representing dof pre-basis (b), with `T<:Dof`
 """
-struct LinearCombinationDofVector{T,V,F} <: AbstractVector{T}
+@ahe struct LinearCombinationDofVector{T,V,F} <: AbstractVector{T}
   values::V
-  dofs::F
+  predofs::F
   function LinearCombinationDofVector(
     values::AbstractMatrix{<:Number},
-    dofs::AbstractVector{<:Dof}
+    predofs::AbstractVector{<:Dof}
   )
-    T = eltype(dofs)
+    @check size(values,1) == length(predofs) """\n
+    Incompatible sizes for performing the linear combination
+
+        linear_combination(values,predofs) = transpose(values)*predofs
+
+    size(values,1) != length(predofs)
+    """
+    T = eltype(predofs)
     V = typeof(values)
-    F = typeof(dofs)
-    new{T,V,F}(values,dofs)
+    F = typeof(predofs)
+    new{T,V,F}(values,predofs)
   end
 end
 
@@ -40,17 +54,17 @@ end
 
 function return_cache(b::LinearCombinationDofVector,field)
   k = Fields.LinearCombinationMap(:)
-  cf = return_cache(b.dofs,field)
-  fx = evaluate!(cf,b.dofs,field)
-  ck = return_cache(k,b.values,fx)
+  cf = return_cache(b.predofs,field)
+  fx = evaluate!(cf,b.predofs,field)
+  ck = return_cache(k,fx,transpose(b.values))
   return cf, ck
 end
 
 function evaluate!(cache,b::LinearCombinationDofVector,field)
   cf, ck = cache
   k = Fields.LinearCombinationMap(:)
-  fx = evaluate!(cf,b.dofs,field)
-  return evaluate!(ck,k,b.values,fx)
+  fx = evaluate!(cf,b.predofs,field)
+  return evaluate!(ck,k,fx,transpose(b.values))
 end
 
 """
@@ -68,7 +82,7 @@ Represents { η = σ∘F : σ ∈ Σ }, evaluated as η(φ) = σ(F(φ,args...)) 
 Intended combinations would be:
 
 - Σ ⊂ V* a dof basis in the physical domain and F* : V̂ -> V is a pushforward map.
-- ̂Σ ⊂ V̂* a dof basis in the reference domain and (F*)⁻¹ : V -> V̂ is an inverse pushforward map.
+- Σ̂ ⊂ V̂* a dof basis in the reference domain and (F*)⁻¹ : V -> V̂ is an inverse pushforward map.
 
 """
 struct MappedDofBasis{T<:Dof,MT,BT,A} <: AbstractVector{T}
@@ -103,7 +117,7 @@ function Arrays.evaluate!(cache, b::MappedDofBasis, fields)
 end
 
 """
-    test_dof(dof,field,v;cmp::Function=(==))
+    test_dof(dof,field,v; cmp::Function=(==))
 
 Test that the `Dof` interface is properly implemented
 for object `dof`. It also checks if the object `dof`
@@ -114,6 +128,11 @@ function test_dof(dof::Dof,field,v;cmp::Function=(==))
   _test_dof(dof,field,v,cmp)
 end
 
+"""
+    test_dof_array(dofs::AbstractArray{<:Dof}, field, v; cmp::Function=(==))
+
+Like [`test_dof`](@ref) for a DoF basis.
+"""
 function test_dof_array(dof::AbstractArray{<:Dof},field,v;cmp::Function=(==))
   _test_dof(dof,field,v,cmp)
 end

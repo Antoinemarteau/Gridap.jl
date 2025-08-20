@@ -1,6 +1,7 @@
 module PolynomialInterfacesTests
 
 using Test
+using Gridap.Arrays
 using Gridap.Fields
 using Gridap.Polynomials
 using StaticArrays
@@ -15,6 +16,7 @@ x = fill(xi,np)
 
 struct MockPolynomial <: Polynomial end
 @test_throws ErrorException isHierarchical(Polynomial)
+@test_throws ErrorException testvalue(Polynomial)
 
 # Interfaces to implement
 @test_throws ErrorException isHierarchical(MockPolynomial)
@@ -23,17 +25,17 @@ D = 1
 K = 0
 c = zero(MMatrix{D,K+1})
 
-@test_throws ErrorException Polynomials._evaluate_1d!(MockPolynomial, Val(1), c, xi, 1)
-@test_throws ErrorException Polynomials._gradient_1d!(MockPolynomial, Val(1), c, xi, 1)
-@test_throws ErrorException Polynomials._hessian_1d!( MockPolynomial, Val(1), c, xi, 1)
-@test_throws ErrorException Polynomials._derivatives_1d!(MockPolynomial, Val(1), (nothing,nothing,nothing,nothing), xi, 1)
+@test_throws ErrorException Polynomials._evaluate_1d!(MockPolynomial, 1, c, xi, 1)
+@test_throws ErrorException Polynomials._gradient_1d!(MockPolynomial, 1, c, xi, 1)
+@test_throws ErrorException Polynomials._hessian_1d!( MockPolynomial, 1, c, xi, 1)
+@test_throws ErrorException Polynomials._derivatives_1d!(MockPolynomial, 1, (nothing,nothing,nothing,nothing), xi, 1)
 
 function Polynomials._evaluate_1d!(
-  ::Type{MockPolynomial},::Val{K}, cc::AbstractMatrix{T}, xi, d) where {K,T<:Number}
+  ::Type{MockPolynomial},K::Int, cc::AbstractMatrix{T}, xi, d) where T<:Number
 
   cc[1,1] = 1.
 end
-Polynomials._derivatives_1d!(MockPolynomial, Val(1), (c,), xi, 1)
+Polynomials._derivatives_1d!(MockPolynomial, 1, (c,), xi, 1)
 @test c[1][1] == 1.
 
 ###########################
@@ -51,6 +53,7 @@ mb = MockPolyBasis()
 @test return_type(mb) == T
 @test mb[1] == MockPolynomial()
 @test_throws ErrorException get_order(mb)
+@test_throws ErrorException testvalue(mb)
 
 Polynomials.get_order(b::MockPolyBasis) = 0
 

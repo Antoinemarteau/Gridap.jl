@@ -1,33 +1,46 @@
 
-struct DivConformity <: Conformity end
-
 # RaviartThomas
 
-struct RaviartThomas <: PushforwardRefFE end
+"""
+    struct RaviartThomas <: ReferenceFEName
+"""
+struct RaviartThomas <: ReferenceFEName end
+
+"""
+    const raviart_thomas = RaviartThomas()
+
+Singleton of the [`RaviartThomas`](@ref) reference FE name.
+"""
 const raviart_thomas = RaviartThomas()
 
-Pushforward(::Type{<:RaviartThomas}) = ContraVariantPiolaMap()
+Pushforward(::Type{RaviartThomas}) = ContraVariantPiolaMap()
 
 """
-    RaviartThomasRefFE(::Type{et},p::Polytope,order::Integer) where et
+    RaviartThomasRefFE(::Type{T}, p::Polytope, order::Integer; sh_is_pb=true)
 
-The `order` argument has the following meaning: the divergence of the  functions in this basis
-is in the Q space of degree `order`.
+The `order` argument has the following meaning: the divergence of the functions
+in this basis is in the Q space of degree `order`. `T` is the type of scalar components.
+
+`sh_is_pb` is only used if `p` is a simplex.
 """
 function RaviartThomasRefFE(
-  ::Type{T},p::Polytope{D},order::Integer
-) where {T,D}
+  ::Type{T},p::Polytope{D},order::Integer; sh_is_pb=true) where {T,D}
+
+  rotate_90 = D==2
+  k = D-1
 
   if is_n_cube(p)
-    prebasis = QCurlGradBasis(Legendre,Val(D),T,order)         # Prebasis
-    cb = QGradBasis(Legendre,Val(D),T,order-1)                 # Cell basis
-    fb = LegendreBasis(Val(D-1),T,order,Polynomials._q_filter) # Face basis
+    PT = Legendre # Could be a Kwargs, any basis works
+    prebasis =     FEEC_poly_basis(Val(D),  T,order+1,k,:Q⁻,PT; rotate_90) # Q⁻ᵣΛᵏ(□ᴰ), r = order+1
+    fb =           FEEC_poly_basis(Val(D-1),T,order  ,0,:Q⁻,PT)            # Facet basis Q⁻ᵨΛ⁰(□ᴰ⁻¹), ρ = r-1
+    cb = order>0 ? FEEC_poly_basis(Val(D),  T,order  ,1,:Q⁻,PT) : nothing  # Cell basis  Q⁻ᵨΛ¹(□ᴰ),   ρ = r-1
   elseif is_simplex(p)
-    prebasis = PCurlGradBasis(Monomial,Val(D),T,order)                        # Prebasis
-    cb = LegendreBasis(Val(D),VectorValue{D,T},order-1,Polynomials._p_filter) # Cell basis
-    fb = LegendreBasis(Val(D-1),T,order,Polynomials._p_filter)                # Face basis
+    PT = Bernstein # Could be a Kwargs, any basis works
+    prebasis =     FEEC_poly_basis(Val(D),  T,order+1,k,:P⁻,PT; rotate_90) # P⁻ᵣΛᵏ(△ᴰ), r = order+1
+    fb =           FEEC_poly_basis(Val(D-1),T,order  ,0,:P ,PT)            # Facet basis PᵨΛ⁰(△ᴰ⁻¹), ρ = r-1
+    cb = order>0 ? FEEC_poly_basis(Val(D),  T,order-1,1,:P ,PT) : nothing  # Cell basis  PᵨΛ¹(△ᴰ),   ρ = r-2
   else
-    @notimplemented "Raviart-Thomas Reference FE only available for cubes and simplices"
+    @notimplemented "Raviart-Thomas Reference FE only available for n-cubes and simplices"
   end
 
   function cmom(φ,μ,ds) # Cell moment function: σ_K(φ,μ) = ∫(φ·μ)dK
@@ -46,11 +59,8 @@ function RaviartThomasRefFE(
     push!(moments,(get_dimrange(p,D),cmom,cb)) # Cell moments
   end
 
-  return MomentBasedReferenceFE(RaviartThomas(),p,prebasis,moments,DivConformity())
-end
-
-function ReferenceFE(p::Polytope,::RaviartThomas,order;kwargs...)
-  RaviartThomasRefFE(Float64,p,order;kwargs...)
+  sh_is_pb = sh_is_pb && is_simplex(p)
+  return MomentBasedReferenceFE(RaviartThomas(),p,prebasis,moments,DivConformity(); sh_is_pb)
 end
 
 function ReferenceFE(p::Polytope,::RaviartThomas,::Type{T},order;kwargs...) where T
@@ -74,18 +84,4 @@ end
 
 function get_face_own_dofs(reffe::GenericRefFE{RaviartThomas}, conf::DivConformity)
   get_face_dofs(reffe)
-end
-
-# TODO: Please remove me
-function legendreBasis(::Type{T},p::Polytope,orders) where T
-  compute_legendre_basis(T,p,orders)
-end
-function legendreBasis(::Type{T},p::Polytope{D},order::Int) where {D,T}
-  orders = tfill(order,Val{D}())
-  legendreBasis(T,p,orders)
-end
-function compute_legendre_basis(::Type{T},p::ExtrusionPolytope{D},orders) where {D,T}
-  extrusion = Tuple(p.extrusion)
-  terms = _monomial_terms(extrusion,orders)
-  LegendreBasis(Val(D),T,orders,terms)
 end

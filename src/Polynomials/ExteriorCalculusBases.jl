@@ -1,131 +1,143 @@
-#################################
-# Tensorial nD polynomial bases #
-#################################
+#############################################
+# (Proxied) Form valued nD polynomial bases #
+#############################################
 
-"""
-    struct FEECPolyBasis{r,k,F,D,...} <: PolynomialBasis
+_ensure_hierarchical(PT) = !isHierarchical(PT) && @unreachable "Polynomial family must be hierarchical, got $PT."
 
-where `F` is in  {:P⁻,:P,:Q⁻,:S} and represents the FE family in Arnold et. al. nomenclature.
-
-Finite Element Exterior Calculus polynomial basis for the spaces `Fr`Λ`ᴷ`
-in dimension `D`, that is P⁻`r`Λ`ᴷ`(△`ᴰ`), P`r`Λ`ᴷ`(△`ᴰ`), Q⁻`r`Λ`ᴷ`(□`ᴰ`) or S`r`Λ`ᴷ`(□`ᴰ`).
-
-Reference: D. N. Arnold and A. Logg, Periodic Table of the Finite Elements, SIAM News, vol. 47 no. 9, November 2014
-"""
-struct FEECPolyBasis{r,k,F,B} <: AbstractVector{Polynomial}
-  _basis::B # <: PolynomialBasis{D,V,K,PT}
-
-  function FEECPolyBasis{D}(::Type{T},r,k,F::Symbol,::Type{PT}) where {D,PT<:Polynomial,T}
-    @check T<:Real "T needs to be <:Real since represents the scalar type"
-    @check k in 0:D "The form order k must be in 0:D"
-    @check r > 0    "The polynomial order r must be positive"
-
-    b = _select_FEEC_basis(r,k,F,Val(D),T,PT)
-    new{r,k,F,typeof(b)}(b)
-  end
+function _default_poly_type(F)
+  F ∈ (:P, :P⁻) && return Bernstein
+  F ∈ (:Q⁻,:S)  && return Legendre
+  Monomial
 end
 
-#struct FEECPolyBasis{r,k,F,D,V,K,PT,B} <: PolynomialBasis{D,V,K,PT}
-#  _basis::B # <: PolynomialBasis{D,V,K,PT}
-#
-#  function FEECPolyBasis{D}(::Type{T},r,k,F::Symbol,::Type{PT}) where {D,PT<:Polynomial,T}
-#    @check T<:Real "T needs to be <:Real since represents the scalar type"
-#    @check k in 0:D "The form order k must be in 0:D"
-#    @check r > 0    "The polynomial order r must be positive"
-#
-#    b = _select_FEEC_basis(r,k,F,Val(D),T,PT)
-#    V = return_type(b)
-#    K = get_order(b)
-#    new{r,k,F,D,V,K,PT,typeof(b)}(b)
-#  end
-#end
+"""
+    FEEC_poly_basis(::Val{D},T,r,k,F::Symbol, PT=_default_poly_type(F); kwargs...)
 
-function FEECPolyBasis(::Val{D},::Type{T},r,k,F::Symbol,pt::Type{PT}=Monomial) where {D,T,PT<:Polynomial}
-  FEECPolyBasis{D}(T,r,k,F,pt)
-end
+"Factory for polynomial basis of Finite Element Exterior Calculus spaces"
 
-Base.size(b::FEECPolyBasis) = size(b._basis)
-Base.getindex(b::FEECPolyBasis, i::Integer) = getindex(b._basis, i)
-Base.IndexStyle(::FEECPolyBasis) = IndexLinear()
-get_dimension(::FEECPolyBasis{r,k,F,<:PolynomialBasis{D}}) where {r,k,F,D} = D
-get_order(b::FEECPolyBasis) = get_order(b._basis)
-return_type(b::FEECPolyBasis) = return_type(b._basis)
+Return, if it is implemented, a polynomial basis for the space  `FᵣΛᵏ` in
+dimension `D`, with `T` the scalar component type and `PT<:Polynomial` the
+polynomial basis family.
 
-get_FEEC_poly_degree(::FEECPolyBasis{r}) where r = r
-get_FEEC_form_degree(::FEECPolyBasis{r,k}) where {r,k} = k
-get_FEEC_family(::FEECPolyBasis{r,k,F}) where {r,k,F} = F
+The default `PT` is `Bernstein` on simplices and `Legendre` on D-cubes.
 
+# Arguments
+- `D`: spatial dimension
+- `T::Type`: scalar components type
+- `r::Int`: polynomial order
+- `k::Int`: form order
+- `F::Symbol`: family, i.e. `:P⁻`, `:P`, `:Q⁻` or `:S`
+### kwargs
+- `rotate_90::Bool`: only if `D`=2 and `k`=1, tells to use the vector proxy corresponding to div conform function instead of curl conform ones.
+- `vertices=nothing`: for `PT=Bernstein` bases on simplices (`F = :P` or `:P⁻`), the basis is defined on the simplex defined by `vertices` instead of the reference one.
+""" # document DG_calc once it's implemented
+function FEEC_poly_basis(::Val{D},::Type{T},r,k,F::Symbol,PT=_default_poly_type(F);
+    DG_calc=false, rotate_90=false, vertices=nothing) where {D,T}
 
-# Implementation
+  @assert PT <: Polynomial
 
-function _select_FEEC_basis(r,k,F,::Val{D},::Type{T},::Type{PT}) where {D,T,PT}
-  @check F in (:P⁻,:P,:Q⁻,:S) "F must be either :P⁻,:P,:Q⁻ or :S"
+  # these call FEEC_space_definition_checks internally
+  F == :P⁻ && PT == Bernstein && return BarycentricPmΛBasis(Val(D),T,r,k,vertices; rotate_90, DG_calc)
+  F == :P  && PT == Bernstein && return BarycentricPΛBasis( Val(D),T,r,k,vertices; rotate_90, DG_calc)
+
+  FEEC_space_definition_checks(Val(D), T, r, k, F, rotate_90, DG_calc)
+  @notimplementedif DG_calc # This ensures 0≤k≤D≤3
 
   if k == 0
-    # Scalar function
-    @notimplementedif r < 1
+    # Scalar H1 conforming functions
+    @notimplementedif r < 0
     if     F == :P⁻ || F == :P # Lagrange, ℙr space
+      _ensure_hierarchical(PT)
       CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
     elseif F == :Q⁻            # Lagrange, ℚr space
       CartProdPolyBasis(PT,Val(D),T,r,_q_filter)
     elseif F == :S             # Lagrange, 𝕊r space
+      _ensure_hierarchical(PT)
       CartProdPolyBasis(PT,Val(D),T,r,_ser_filter)
     end
 
 
   elseif k == D
-    # Scalar densities
+    # Scalar L2 conforming densities
     if     F == :P⁻ # Lagrange, ℙr₋1 space
+      _ensure_hierarchical(PT)
       CartProdPolyBasis(PT,Val(D),T,r-1,_p_filter)
     elseif F == :P  # Lagrange, ℙr space
+      _ensure_hierarchical(PT)
       CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
     elseif F == :Q⁻ # Lagrange, ℚr₋1 space
       CartProdPolyBasis(PT,Val(D),T,r-1,_q_filter)
-    elseif F == :S  # Serandipity Lagrange ≡ ℙr space
+    elseif F == :S  # Serendipity Lagrange ≡ ℙr space
+      _ensure_hierarchical(PT)
       CartProdPolyBasis(PT,Val(D),T,r,_p_filter)
     end
 
 
-  elseif k == 1 # D > 1
-    @notimplementedif D > 3
+  elseif k == 1 # and D > 1
     V = VectorValue{D,T}
-
     if D == 2
-      if     F == :P⁻ # Raviart-Thomas
-        @notimplementedif PT ≠ Monomial
-        PCurlGradBasis(PT,Val(D),T,r-1)
+      if     F == :P⁻
+        if rotate_90 # Raviart-Thomas
+          # former PCurlGradBasis(PT,Val(D),T,r-1)
+          RaviartThomasPolyBasis{D}(PT, T, r-1)
+        else         # Nedelec
+          # former PGradBasis(PT,Val(D),T,r-1)
+          _ensure_hierarchical(PT)
+          NedelecPolyBasisOnSimplex{D}(PT,T,r-1)
+        end
       elseif F == :P  # BDM on simplex
-        CartProdPolyBasis(PT,Val(D),V,r,Polynomials._p_filter)
-      elseif F == :Q⁻ # Raviart-Thomas
-        QCurlGradBasis(PT,Val(D),T,r-1)
+        CartProdPolyBasis(PT,Val(D),V,r,Polynomials._p_filter) # rotation not needed
+      elseif F == :Q⁻
+        if rotate_90 # Raviart-Thomas
+          # former QCurlGradBasis(PT,Val(D),T,r-1)
+          orders = [ r-1 + (i==j ? 1 : 0) for i in 1:D, j in 1:D ]
+          CompWiseTensorPolyBasis{D}(PT, V, orders)
+        else         # Nedelec
+          # former QGradBasis(PT,Val(D),T,r-1)
+          orders = [ r-1 + (i==j ? 0 : 1) for i in 1:D, j in 1:D ]
+          CompWiseTensorPolyBasis{D}(PT, V, orders)
+        end
       elseif F == :S  # BDM on D-cubes
         @notimplemented
       end
 
-    else # so D == 3
+    elseif D == 3
       if     F == :P⁻ # First kind Nedelec
-        @notimplementedif PT ≠ Monomial
-        PGradBasis(PT,Val(D),T,r-1)
+        # former PGradBasis(PT,Val(D),T,r-1)
+        _ensure_hierarchical(PT)
+        NedelecPolyBasisOnSimplex{D}(PT,T,r-1)
       elseif F == :P  # Second kind Nedelec
-        @notimplemented
+        #@notimplemented
+        _ensure_hierarchical(PT)
+        CartProdPolyBasis(PT,Val(D),V,r,Polynomials._p_filter) # rotation not needed
       elseif F == :Q⁻ # First kind Nedelec
-        QGradBasis(PT,Val(D),T,r-1)
+        # former QGradBasis(PT,Val(D),T,r-1)
+        orders = [ r-1 + (i==j ? 0 : 1) for i in 1:D, j in 1:D ]
+        CompWiseTensorPolyBasis{D}(PT, V, orders)
       elseif F == :S  # "Serendipity second kind Nedelec" ?
         @notimplemented
       end
+
+    else # D > 3
+      @notimplemented
     end
 
 
   elseif k == 2 # D > 2
     @notimplementedif D > 3
+    V = VectorValue{D,T}
     # D == 3
     if     F == :P⁻ # Raviart-Thomas
-      PCurlGradBasis(PT,Val(D),T,r-1)
+      # former PCurlGradBasis(PT,Val(D),T,r-1)
+      RaviartThomasPolyBasis{D}(PT, T, r-1)
     elseif F == :P  # "3D BDM" ?
-      @notimplemented
+      _ensure_hierarchical(PT)
+      CartProdPolyBasis(PT,Val(D),V,r,Polynomials._p_filter) # rotation not needed
     elseif F == :Q⁻ # Raviart-Thomas
-      QCurlGradBasis(PT,Val(D),T,r-1)
-    elseif F == :S  # "3D Serandipity BDM" ?
+      # former QCurlGradBasis(PT,Val(D),T,r-1)
+      orders = [ r-1 + (i==j ? 1 : 0) for i in 1:D, j in 1:D ]
+      CompWiseTensorPolyBasis{D}(PT, V, orders)
+    elseif F == :S  # "3D Serendipity BDM" ?
       @notimplemented
     end
 
@@ -133,51 +145,4 @@ function _select_FEEC_basis(r,k,F,::Val{D},::Type{T},::Type{PT}) where {D,T,PT}
     @unreachable
   end
 end
-
-# API
-
-function return_cache(b::FEECPolyBasis, x::AbstractVector{<:Point})
-  return_cache(b._basis,x)
-end
-
-function evaluate!(cache, b::FEECPolyBasis, x::AbstractVector{<:Point})
-  evaluate!(cache, b._basis, x)
-end
-
-# Derivatives, option 2:
-
-function return_cache(
-  fg::FieldGradientArray{1,<:FEECPolyBasis},
-  x::AbstractVector{<:Point})
-
-  fg_b = FieldGradientArray{1}(fg.fa._basis)
-  return (fg_b, return_cache(fg_b,x))
-end
-
-function evaluate!(cache,
-  fg::FieldGradientArray{1,<:FEECPolyBasis},
-  x::AbstractVector{<:Point})
-
-  fg_b, b_cache = cache
-  evaluate!(b_cache, fg_b, x)
-end
-
-function return_cache(
-  fg::FieldGradientArray{2,<:FEECPolyBasis},
-  x::AbstractVector{<:Point})
-
-  fg_b = FieldGradientArray{2}(fg.fa._basis)
-  return (fg_b, return_cache(fg_b,x))
-end
-
-function evaluate!(cache,
-  fg::FieldGradientArray{2,<:FEECPolyBasis},
-  x::AbstractVector{<:Point})
-
-  fg_b, b_cache = cache
-  evaluate!(b_cache, fg_b, x)
-end
-
-
-
 

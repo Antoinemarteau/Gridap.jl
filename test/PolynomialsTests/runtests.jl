@@ -6,13 +6,9 @@ using Test
 
 @testset "MonomialBases" begin include("MonomialBasesTests.jl") end
 
-@testset "QGradBases" begin include("QGradBasesTests.jl") end
+@testset "CurlConformBases" begin include("CurlConformBasesTests.jl") end
 
-@testset "QCurlGradBases" begin include("QCurlGradBasesTests.jl") end
-
-@testset "PGradBases" begin include("PGradBasesTests.jl") end
-
-@testset "PCurlGradBases" begin include("PCurlGradBasesTests.jl") end
+@testset "DivConformBases" begin include("DivConformBasesTests.jl") end
 
 @testset "ModalC0Bases" begin include("ModalC0BasesTests.jl") end
 
@@ -22,9 +18,11 @@ using Test
 
 @testset "BernsteinBases" begin include("BernsteinBasesTests.jl") end
 
-@testset "PLambdaBasis" begin include("PLambdaBasesTests.jl") end
+@testset "BarycentricPΛBases" begin include("BarycentricPΛBases.jl") end
 
-#@testset "FEECPolyBasis" begin include("ExteriorCalculusBasesTests.jl") end
+@testset "FEECBases" begin include("ExteriorCalculusBasesTests.jl") end
+
+@testset "ForwardDiffTests.jl" begin include("ForwardDiffTests.jl") end
 
 #@testset "ChangeBasis" begin include("ChangeBasisTests.jl") end
 

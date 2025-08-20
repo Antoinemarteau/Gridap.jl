@@ -65,7 +65,7 @@ end
 """
     Polytope(extrusion::Int...)
 
-Equivalent to `ExtrusionPolytope(extrusion...)`
+Equivalent to [`ExtrusionPolytope(extrusion::Int...)`](@ref).
 """
 Polytope(extrusion::Int...) = Polytope(extrusion)
 
@@ -82,7 +82,7 @@ The values in `extrusion` are either equal to the constant
 
 # Examples
 
-Creating a quadrilateral, a triangle, and a wedge
+Creating a quadrilateral, a triangle, and a wedge (triangular prism)
 
 ```jldoctest
 using Gridap.ReferenceFEs
@@ -305,38 +305,38 @@ function positive_simplexify_hypercube(dim::Integer)
 end
 
 function simplexify_hypercube(dim::Int)
-    @assert dim ≥ 0
-    # Determine simplices recursively
-    simplices = Vector{Int}[]
-    corner = 0
-    vertices = [corner]
-    next_corner!(simplices, dim, vertices, corner)
-    # Correct vertex numbering
-    for s in simplices
-        s .+= 1
+  @assert dim ≥ 0
+  # Determine simplices recursively
+  simplices = Vector{Int}[]
+  corner = 0
+  vertices = [corner]
+  next_corner!(simplices, dim, vertices, corner)
+  # Correct vertex numbering
+  for s in simplices
+    s .+= 1
+  end
+  # Check output
+  @assert length(simplices) == factorial(dim)
+  for s in simplices
+    @assert length(s) == dim+1
+    for v in s
+      @assert 1 ≤ v ≤ 2^dim
     end
-    # Check output
-    @assert length(simplices) == factorial(dim)
-    for s in simplices
-        @assert length(s) == dim+1
-        for v in s
-            @assert 1 ≤ v ≤ 2^dim
-        end
-    end
-    return simplices
+  end
+  return simplices
 end
 
 """
-Sweep through the `dim`-dimensional hypercube recursively, collecting
+Sweep through the `D`-Densional hypercube recursively, collecting
 all simplices.
 
-We represent vertices as bit patterns. In `dim` dimensions, the
-lowermost `dim` bits are either zero or one. Interpreted as integer,
+We represent vertices as bit patterns. In `D` Densions, the
+lowermost `D` bits are either zero or one. Interpreted as integer,
 this labels the vertices of the hypercube from the origin ("bottom")
-`0` to the diagonally opposite vertex ("top") `2^dim-1`.
+`0` to the diagonally opposite vertex ("top") `2^D-1`.
 
 Each simplex contains both the bottom vertex `0` as well as the top
-vertex `2^dim-1`. Its other vertices trace a path from the bottom to
+vertex `2^D-1`. Its other vertices trace a path from the bottom to
 the top. The algorithm below finds all possible paths.
 
 - `simplices` is the accumulator where the simplices are collected.
@@ -346,22 +346,22 @@ the top. The algorithm below finds all possible paths.
 """
 function next_corner!(simplices::Vector{Vector{Int}}, dim::Int,
                       vertices::Vector{Int}, corner::Int)
-    @assert count_ones(corner) == length(vertices) - 1
-    if length(vertices) == dim + 1
-        # We have all vertices; save the simplex
-        push!(simplices, vertices)
-        return
-    end
-    # Loop over all neighbouring corners
-    for d in 1:dim
-        bit = 1 << (d-1)
-        if (corner & bit) == 0
-            new_corner = corner | bit
-            new_vertices = [vertices; new_corner]
-            next_corner!(simplices, dim, new_vertices, new_corner)
-        end
-    end
+  @assert count_ones(corner) == length(vertices) - 1
+  if length(vertices) == dim + 1
+    # We have all vertices; save the simplex
+    push!(simplices, vertices)
     return
+  end
+  # Loop over all neighbouring corners
+  for d in 1:dim
+    bit = 1 << (d-1)
+    if (corner & bit) == 0
+      new_corner = corner | bit
+      new_vertices = [vertices; new_corner]
+      next_corner!(simplices, dim, new_vertices, new_corner)
+    end
+  end
+  return
 end
 
 function Base.show(io::IO,p::ExtrusionPolytope)
@@ -390,7 +390,7 @@ end
 """
     get_extrusion(p::ExtrusionPolytope)
 
-Equivalent to `p.extrusion`.
+Return the vector of the extrusions defining `p`. See also [`ExtrusionPolytope`](@ref).
 """
 get_extrusion(p::ExtrusionPolytope) = p.extrusion
 
@@ -724,7 +724,7 @@ function _nullspace(v)
 end
 
 # Returns the first vertex not belonging to the facet i_f, or -1 if all vertices
-# belong to the facet. 
+# belong to the facet.
 # nf_vs is the array of arrays of vertices of the facets of the polytope.
 function _vertex_not_in_facet(p::DFace, i_f, nf_vs)
   for i in p.nf_dimranges[end][1]
@@ -893,7 +893,6 @@ const VERTEX = Polytope()
 """
 const SEGMENT = Polytope(HEX_AXIS)
 
-# TODO use larger names
 """
     const TRI = Polytope(TET_AXIS,TET_AXIS)
 """

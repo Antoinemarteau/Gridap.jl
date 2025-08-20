@@ -5,14 +5,15 @@
 """
     struct CartProdPolyBasis{D,V,PT} <: PolynomialBasis{D,V,PT}
 
-"Cartesian product polynomial basis"
+"Cartesian product of a scalar tensor polynomial basis"
 
 Type representing a basis of a (an)isotropic `D`-multivariate `V`-valued
 cartesian product polynomial space
 
 `V`(𝕊, 𝕊, ..., 𝕊)
 
-where 𝕊 is a scalar multivariate polynomial space.
+where the scalar space 𝕊 is a (subspace of a) tensor product space of an
+univariate polynomial basis.
 
 The scalar polynomial basis spanning 𝕊 is defined as
 
@@ -20,7 +21,7 @@ The scalar polynomial basis spanning 𝕊 is defined as
 
 where bαᵢ`ᴷ`(xᵢ) is the αᵢth 1D basis polynomial of the basis `PT` of order `K`
 evaluated at xᵢ (iᵗʰ comp. of x), and where α = (α₁, α₂, ..., α`D`) is a
-multi-index in `terms`, a subset of ⟦0,`K`⟧`ᴰ`. `terms` is a field that can be
+multi-index in `terms`, a subset of {0:`K`}`ᴰ`. `terms` is a field that can be
 passed in a constructor.
 
 This type fully implements the [`Field`](@ref) interface, with up to second
@@ -48,6 +49,10 @@ end
 
 @inline Base.size(a::CartProdPolyBasis{D,V}) where {D,V} = (length(a.terms)*num_indep_components(V),)
 @inline get_order(b::CartProdPolyBasis) = b.max_order
+
+function testvalue(::Type{CartProdPolyBasis{D,V,PT}}) where {D,V,PT}
+  CartProdPolyBasis{D}(PT,V,tfill(0,Val(D)),CartesianIndex{D}[])
+end
 
 function CartProdPolyBasis(
    ::Type{PT},
@@ -137,15 +142,12 @@ end
 
 function _evaluate_nd!(
   b::CartProdPolyBasis{D,V,PT}, x,
-  r::AbstractMatrix{V}, i,
-  c::AbstractMatrix{T}, VK::Val) where {D,V,PT,T}
+  r::AbstractMatrix, i,
+  c::AbstractMatrix{T}, ::Val) where {D,V,PT,T}
 
   for d in 1:D
-    # The optimization below of fine tuning Kd for `orders` is a bottlneck if
-    # `orders` are not passed in `Val`s, due to runtime dispatch depending on
-    # none inferable Val(b.orders[d])
-    # Kd = Val(b.orders[d])
-    _evaluate_1d!(PT,VK,c,x,d)
+    Kd = b.orders[d]
+    _evaluate_1d!(PT,Kd,c,x,d)
   end
 
   k = 1
@@ -198,10 +200,10 @@ function _gradient_nd!(
   r::AbstractMatrix{G}, i,
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
-  s::MVector{D,T}, VK::Val) where {D,V,PT,G,T}
+  s::MVector{D,T}, ::Val{K}) where {D,V,PT,G,T,K}
 
   for d in 1:D
-    _derivatives_1d!(PT,VK,(c,g),x,d)
+    _derivatives_1d!(PT,K,(c,g),x,d)
   end
 
   k = 1
@@ -336,10 +338,10 @@ function _hessian_nd!(
   c::AbstractMatrix{T},
   g::AbstractMatrix{T},
   h::AbstractMatrix{T},
-  s::MMatrix{D,D,T}, VK::Val) where {D,V,PT,G,T}
+  s::MMatrix{D,D,T}, ::Val{K}) where {D,V,PT,G,T,K}
 
   for d in 1:D
-    _derivatives_1d!(PT,VK,(c,g,h),x,d)
+    _derivatives_1d!(PT,K,(c,g,h),x,d)
   end
 
   k = 1

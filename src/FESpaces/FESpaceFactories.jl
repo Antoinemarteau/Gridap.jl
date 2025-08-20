@@ -63,18 +63,6 @@ function _add_constraint(F,order,constraint)
 end
 
 function FESpace(
-  t::Triangulation,
-  cell_reffe::AbstractArray{<:ReferenceFE};
-  trian=nothing,
-  kwargs...)
-  @assert trian === nothing
-  # TODO for L2 conformity and no dirichlet conditions
-  # no needed to build the active model
-  model = get_active_model(t)
-  FESpace(model,cell_reffe;trian=t,kwargs...)
-end
-
-function FESpace(
   model::DiscreteModel,
   cell_reffe::AbstractArray{<:ReferenceFE};
   conformity=nothing,
@@ -120,9 +108,9 @@ function FESpace(
 end
 
 function FESpace(model::DiscreteModel,
-                 reffe::Tuple{<:ReferenceFEName,Any,Any}; kwargs...)
-  basis, reffe_args,reffe_kwargs = reffe
-  cell_reffe = ReferenceFE(model,basis,reffe_args...;reffe_kwargs...)
+                 reffe::Tuple{<:Union{ReferenceFEName,Symbol},Any,Any}; kwargs...)
+  reffe_name, reffe_args,reffe_kwargs = reffe
+  cell_reffe = ReferenceFE(model,reffe_name,reffe_args...;reffe_kwargs...)
   FESpace(model,cell_reffe;kwargs...)
 end
 

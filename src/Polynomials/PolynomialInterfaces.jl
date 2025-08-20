@@ -23,6 +23,7 @@ hierarchical.
 """
 isHierarchical(::Type{<:Polynomial}) = @abstractmethod
 
+testvalue(::Type{PT}) where PT<:Polynomial = isconcretetype(PT) ? PT() : @abstractmethod
 
 ###########################################
 # Polynomial basis abstract type and APIs #
@@ -61,12 +62,22 @@ abstract type PolynomialBasis{D,V,PT<:Polynomial} <: AbstractVector{PT}  end
 @inline Base.IndexStyle(::PolynomialBasis) = IndexLinear()
 @inline return_type(::PolynomialBasis{D,V}) where {D,V} = V
 
+
+"""
+    get_dimension(::PolynomialBasis{D}) -> D
+"""
+@inline get_dimension(::PolynomialBasis{D}) where D = D
+
 """
     get_order(b::PolynomialBasis)
 
 Return the maximum polynomial order in a dimension, or `0` in 0D.
 """
 @inline get_order(::PolynomialBasis) = @abstractmethod
+get_order(f::Fields.LinearCombinationFieldVector) = get_order(f.fields)
+get_order(f::AbstractVector{<:ConstantField}) = 0
+
+testvalue(::Type{<:PolynomialBasis}) = @abstractmethod
 
 
 ###########
@@ -74,9 +85,9 @@ Return the maximum polynomial order in a dimension, or `0` in 0D.
 ###########
 
 _q_filter( e,order)  = (maximum(e,init=0) <= order) # ℚₙ
-_qh_filter(e,order)  = (maximum(e,init=0) == order) # ℚₙ\ℚ₍ₙ₋₁₎
+_qh_filter(e,order)  = (maximum(e,init=0) == order) # ℚ̃ₙ = ℚₙ\ℚ₍ₙ₋₁₎
 _p_filter( e,order)  = (sum(e) <= order)            # ℙₙ
-_ph_filter(e,order)  = (sum(e) == order)            # ℙₙ\ℙ₍ₙ₋₁₎
+_ph_filter(e,order)  = (sum(e) == order)            # ℙ̃ₙ = ℙₙ\ℙ₍ₙ₋₁₎
 _ser_filter(e,order) = (sum( [ i for i in e if i>1 ] ) <= order) # Serendipity
 
 function _define_terms(filter,orders)
@@ -96,7 +107,6 @@ end
 function _return_cache(
   f::PolynomialBasis{D}, x,::Type{G},::Val{N_deriv}) where {D,G,N_deriv}
 
-  @assert D == length(eltype(x)) "Incorrect number of point components"
   T = eltype(G)
   np = length(x)
   ndof = length(f)
@@ -111,17 +121,28 @@ function _return_cache(
   (r, s, t...)
 end
 
+function _return_val_eltype(b::PolynomialBasis{D,V}, x::AbstractVector{<:Point}) where {D,V}
+  xi = testitem(x)
+  zVc = zero(eltype(V))
+  zxic = zero(eltype(xi))
+  T = typeof(zVc*zxic)
+  change_eltype(V, T) # Necessary for dual number probagation for autodiff
+end
+
 function return_cache(f::PolynomialBasis{D,V}, x::AbstractVector{<:Point}) where {D,V}
-  _return_cache(f,x,V,Val(0))
+  @assert D == length(eltype(x)) "Incorrect number of point components"
+  Vr = _return_val_eltype(f,x)
+  _return_cache(f,x,Vr,Val(0))
 end
 
 function return_cache(
   fg::FieldGradientArray{N,<:PolynomialBasis{D,V}},
   x::AbstractVector{<:Point}) where {N,D,V}
 
+  @assert D == length(eltype(x)) "Incorrect number of point components"
   f = fg.fa
   xi = testitem(x)
-  G = V
+  G = _return_val_eltype(f,x)
   for _ in 1:N
     G = gradient_type(G,xi)
   end
@@ -154,12 +175,20 @@ function evaluate!(cache,
   np = length(x)
   _setsize!(f,np,r,c)
   params = _get_static_parameters(f)
+  _loop_point_evals!(np,x,f,r,c,params)
+  r.array
+end
+
+# this is necessary to force inference of params and minimize runtime dispatches
+# to only one (the dispatch on this method)
+@noinline function _loop_point_evals!(np,x,f,r,c,params)
   for i in 1:np
     @inbounds xi = x[i]
     _evaluate_nd!(f,xi,r,i,c,params)
   end
-  r.array
+  nothing
 end
+
 
 function evaluate!(cache,
   fg::FieldGradientArray{1,<:PolynomialBasis{D,V}},
@@ -170,11 +199,16 @@ function evaluate!(cache,
   np = length(x)
   _setsize!(f,np,r,c,g)
   params = _get_static_parameters(f)
+  _loop_point_grads!(np,x,f,r,c,g,s,params)
+  r.array
+end
+
+@noinline function _loop_point_grads!(np,x,f,r,c,g,s,params)
   for i in 1:np
     @inbounds xi = x[i]
     _gradient_nd!(f,xi,r,i,c,g,s,params)
   end
-  r.array
+  nothing
 end
 
 function evaluate!(cache,
@@ -186,11 +220,16 @@ function evaluate!(cache,
   np = length(x)
   _setsize!(f,np,r,c,g,h)
   params = _get_static_parameters(f)
+  _loop_point_hess!(np,x,f,r,c,g,h,s,params)
+  r.array
+end
+
+@noinline function _loop_point_hess!(np,x,f,r,c,g,h,s,params)
   for i in 1:np
     @inbounds xi = x[i]
     _hessian_nd!(f,xi,r,i,c,g,h,s,params)
   end
-  r.array
+  nothing
 end
 
 function return_cache(
@@ -278,7 +317,7 @@ the basis polynomials at a single point `xi` and sets the result in the `i`th
 row of `r`.
 
 - `c` is an implementation specific cache for temporary computation of `b`(`xi`).
-- `params` are optional parameters returned by [`_get_static_parameters(b)`](@ref _get_static_parameters)
+- `params` is an optional (tuple of) parameter(s) returned by [`_get_static_parameters(b)`](@ref _get_static_parameters)
 """
 function _evaluate_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, params)
   @abstractmethod
@@ -294,7 +333,6 @@ for gradients of `b`ₖ(`xi`), and
 
 - `g` is an implementation specific cache for temporary computation of `∇b`(`xi`).
 - `s` is a mutable length `D` cache for ∇`b`ₖ(`xi`).
-- `params` is an optional (tuple of) parameter(s) returned by [`_get_static_parameters(b)`](@ref _get_static_parameters)
 """
 function _gradient_nd!(b::PolynomialBasis, xi, r::AbstractMatrix, i, c, g, s::MVector, params)
   @abstractmethod
@@ -334,7 +372,7 @@ end
 ###############################
 
 """
-    _evaluate_1d!(PT::Type{<:Polynomial},::Val{K},c,x,d)
+    _evaluate_1d!(PT::Type{<:Polynomial},K,c,x,d)
 
 Evaluates in place the 1D basis polynomials of the family `PT` at one D-dim.
 point `x` along the given coordinate 1 ≤ `d` ≤ D.
@@ -342,60 +380,56 @@ point `x` along the given coordinate 1 ≤ `d` ≤ D.
 `c` is an AbstractMatrix of size (at least) `d`×(`K`+1), such that the
 1 ≤ i ≤ `k`+1 values are stored in `c[d,i]`.
 """
-function _evaluate_1d!(::Type{<:Polynomial},::Val{K},c::AbstractMatrix{T},x,d) where {K,T<:Number}
+function _evaluate_1d!(::Type{<:Polynomial},K,c,x,d)
   @abstractmethod
 end
 
 """
-    _gradient_1d!(PT::Type{<:Polynomial},::Val{K},g,x,d)
+    _gradient_1d!(PT::Type{<:Polynomial},K,g,x,d)
 
 Like [`_evaluate_1d!`](@ref), but computes the first derivative of the basis
 polynomials.
 """
-function _gradient_1d!(::Type{<:Polynomial},::Val{K},g::AbstractMatrix{T},x,d) where {K,T<:Number}
+function _gradient_1d!(::Type{<:Polynomial},K,g,x,d)
   @abstractmethod
 end
 
 """
-    _hessian_1d!(PT::Type{<:Polynomial},::Val{K},g,x,d)
+    _hessian_1d!(PT::Type{<:Polynomial},K,g,x,d)
 
 Like [`_evaluate_1d!`](@ref), but computes the second derivative of the basis
 polynomials.
 """
-function _hessian_1d!(::Type{<:Polynomial},::Val{K},h::AbstractMatrix{T},x,d) where {K,T<:Number}
+function _hessian_1d!(::Type{<:Polynomial},K,h::AbstractMatrix{T},x,d) where T<:Number
   @abstractmethod
 end
 
-# Dispatch helpers for base cases
-const Val_01  = Union{Val{0},Val{1}}
-const Val_012 = Union{Val{0},Val{1},Val{2}}
-
 """
-    _derivatives_1d!(PT::Type{<:Polynomial}, ::Val{K}, (c,g,...), x, d)
+    _derivatives_1d!(PT::Type{<:Polynomial}, K, (c,g,...), x, d)
 
 Same as calling
 ```
-_evaluate_1d!(PT, Val(K), c, x d)
-_gradient_1d!(PT, Val(K), g, x d)
+_evaluate_1d!(PT, K, c, x d)
+_gradient_1d!(PT, K, g, x d)
           ⋮
 ```
-but with possible performance optimization.
+but with performance optimization if implemented.
 """
-function _derivatives_1d!(  ::Type{<:Polynomial},v::Val,t::NTuple{N},x,d) where N
+function _derivatives_1d!(  ::Type{<:Polynomial},K,t::NTuple{N},x,d) where N
   @abstractmethod
 end
 
-function _derivatives_1d!(PT::Type{<:Polynomial},v::Val,t::NTuple{1},x,d)
-  @inline _evaluate_1d!(PT, v, t[1], x, d)
+function _derivatives_1d!(PT::Type{<:Polynomial},K,t::NTuple{1},x,d)
+  @inline _evaluate_1d!(PT, K, t[1], x, d)
 end
 
-function _derivatives_1d!(PT::Type{<:Polynomial},v::Val,t::NTuple{2},x,d)
-  @inline _evaluate_1d!(PT, v, t[1], x, d)
-  @inline _gradient_1d!(PT, v, t[2], x, d)
+function _derivatives_1d!(PT::Type{<:Polynomial},K,t::NTuple{2},x,d)
+  @inline _evaluate_1d!(PT, K, t[1], x, d)
+  @inline _gradient_1d!(PT, K, t[2], x, d)
 end
 
-function _derivatives_1d!(PT::Type{<:Polynomial},v::Val,t::NTuple{3},x,d)
-  @inline _evaluate_1d!(PT, v, t[1], x, d)
-  @inline _gradient_1d!(PT, v, t[2], x, d)
-  @inline _hessian_1d!( PT, v, t[3], x, d)
+function _derivatives_1d!(PT::Type{<:Polynomial},K,t::NTuple{3},x,d)
+  @inline _evaluate_1d!(PT, K, t[1], x, d)
+  @inline _gradient_1d!(PT, K, t[2], x, d)
+  @inline _hessian_1d!( PT, K, t[3], x, d)
 end
