@@ -31,6 +31,8 @@ using QuadGK: gauss
 using FastGaussQuadrature: gaussjacobi
 using FastGaussQuadrature: gausslegendre
 
+using Statistics: mean
+
 import Gridap.Arrays: return_cache
 import Gridap.Arrays: evaluate!
 import Gridap.Arrays: return_type
@@ -196,6 +198,7 @@ export ModalC0RefFE
 export ModalScalarRefFE
 export CrouzeixRaviartRefFE
 export BubbleRefFE
+export HermiteRefFE
 
 export Lagrangian
 export RaviartThomas
@@ -208,6 +211,7 @@ export CrouzeixRaviart
 export Serendipity
 #export HellanHerrmannJhonson
 export Bubble
+export Hermite
 
 export lagrangian
 export raviart_thomas
@@ -223,6 +227,7 @@ export crouzeix_raviart
 export serendipity
 #export hhj
 export bubble
+export hermite
 
 export Quadrature
 export QuadratureName
@@ -248,6 +253,8 @@ include("GeneralPolytopes.jl")
 include("Dofs.jl")
 
 include("LagrangianDofBases.jl")
+
+include("DerivativeDofBases.jl")
 
 include("ReferenceFEInterfaces.jl")
 
@@ -302,5 +309,7 @@ include("BezierRefFEs.jl")
 include("ModalC0RefFEs.jl")
 
 include("BubbleRefFEs.jl")
+
+include("HermiteRefFEs.jl")
 
 end # module

@@ -11,6 +11,7 @@ constructors accept, are:
 - [`GradConformity`](@ref) (alias `H1Conformity`); `:H1`, `:Hgrad`, `:C0`
 - [`CurlConformity`](@ref); `:Hcurl`, `:HCurl`
 - [`DivConformity`](@ref); `:Hdiv`, `:HDiv`
+- [`C1Conformity`](@ref); `:C1`, `:H2`
 - [`CDConformity`](@ref)
 """
 abstract type Conformity end
@@ -35,6 +36,11 @@ struct CurlConformity <: Conformity end
     struct DivConformity <: Conformity
 """
 struct DivConformity <: Conformity end
+
+"""
+    struct C1Conformity <: Conformity
+"""
+struct C1Conformity <: Conformity end
 
 
 """
