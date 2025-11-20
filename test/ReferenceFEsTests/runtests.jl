@@ -62,4 +62,6 @@ using Test
 
 @testset "HermiteRefFEs" begin include("HermiteRefFEsTests.jl") end
 
+@testset "ArgyrisRefFEs" begin include("ArgyrisRefFEsTests.jl") end
+
 end # module
