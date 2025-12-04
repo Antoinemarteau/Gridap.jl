@@ -340,7 +340,7 @@ function _hessian_nd!(
   k = 1
   l = length(terms)
 
-  for (n,ci) in enumerate(terms)
+  @inbounds for (n,ci) in enumerate(terms)
 
     for d in 1:D
       _evaluate_1d_mc0!(c,x,a[n],b[n],orders[d],d)
@@ -348,20 +348,12 @@ function _hessian_nd!(
       _hessian_1d_mc0!(h,x,a[n],b[n],orders[d],d)
     end
 
-    for j in eachindex(s)
-      @inbounds s[j] = one(T)
-    end
-    for r in 1:D
-      for q in 1:D
-        for d in 1:D
-          if d != q && d != r
-            @inbounds s[r,q] *= c[d,ci[d]]
-          elseif d == q && d ==r
-            @inbounds s[r,q] *= h[d,ci[d]]
-          else
-            @inbounds s[r,q] *= g[d,ci[d]]
-          end
-        end
+    s .= one(T)
+    for t in 1:D
+      _compute_hess_value!(s,t,t, c,h,g,ci)
+      for q in t+1:D
+        _compute_hess_value!(s,t,q, c,h,g,ci)
+        s[q,t] = s[t,q]
       end
     end
 

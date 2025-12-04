@@ -312,23 +312,28 @@ function _hessian_nd!(
 
   @inbounds for ci in b.terms
 
-    s[:] = one(T)
-
+    s .= one(T)
     for t in 1:D
-      for q in 1:D
-        for d in 1:D
-          if d != q && d != t
-            s[t,q] *= c[d,ci[d]]
-          elseif d == q && d ==t
-            s[t,q] *= h[d,ci[d]]
-          else
-            s[t,q] *= g[d,ci[d]]
-          end
-        end
+      _compute_hess_value!(s,t,t, c,h,g,ci)
+      for q in t+1:D
+        _compute_hess_value!(s,t,q, c,h,g,ci)
+        s[q,t] = s[t,q]
       end
     end
 
     k = _cartprod_set_derivative!(r,i,s,k,V)
+  end
+end
+
+@propagate_inbounds function _compute_hess_value!(s::MMatrix{D,D},t,q,c,h,g,ci) where D
+  for d in 1:D
+    if d != q && d != t
+      s[t,q] *= c[d,ci[d]]
+    elseif d == q && d ==t
+      s[t,q] *= h[d,ci[d]]
+    else
+      s[t,q] *= g[d,ci[d]]
+    end
   end
 end
 

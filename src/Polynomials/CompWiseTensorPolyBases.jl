@@ -274,17 +274,11 @@ function _hessian_nd!(
     for ci in terms
       s .= one(T)
 
-      for r in 1:D
-        for q in 1:D
-          for d in 1:D
-            if d != q && d != r
-              s[r,q] *= c[d,ci[d]]
-            elseif d == q && d ==r
-              s[r,q] *= h[d,ci[d]]
-            else
-              s[r,q] *= g[d,ci[d]]
-            end
-          end
+      for t in 1:D
+        _compute_hess_value!(s,t,t, c,h,g,ci)
+        for q in t+1:D
+          _compute_hess_value!(s,t,q, c,h,g,ci)
+          s[q,t] = s[t,q]
         end
       end
 
